@@ -214,6 +214,8 @@ font-size: 0.75rem;
 font-weight: 600;
 text-decoration: none;
 transition: all 0.2s ease;
+cursor: pointer;
+font-family: inherit;
 }
 
 .btn-bank-app:active {
@@ -302,10 +304,10 @@ border-color: rgba(255, 255, 255, 0.25);
 </div>
 
 <div class="bank-apps-container">
-<a href="bancomer://" class="btn-bank-app">Abrir BBVA</a>
-<a href="banamex://" class="btn-bank-app">Abrir Banamex</a>
-<a href="santandermx://" class="btn-bank-app">Abrir Santander</a>
-<a href="mercadopago://" class="btn-bank-app">Mercado Pago</a>
+<button class="btn-bank-app" onclick="abrirAppBancaria('bbva')">Abrir BBVA</button>
+<button class="btn-bank-app" onclick="abrirAppBancaria('banamex')">Abrir Banamex</button>
+<button class="btn-bank-app" onclick="abrirAppBancaria('santander')">Abrir Santander</button>
+<button class="btn-bank-app" onclick="abrirAppBancaria('mercadopago')">Mercado Pago</button>
 </div>
 
 <a href="https://wa.me/0000000000?text=Hola,%20adjunto%20mi%20comprobante%20de%20pago" class="btn-whatsapp" target="_blank">
@@ -380,6 +382,33 @@ btn.style.color = "";
 btn.style.borderColor = "";
 }, 1800);
 });
+}
+
+function abrirAppBancaria(banco) {
+const userAgent = navigator.userAgent || navigator.vendor || window.opera;
+const isAndroid = /android/i.test(userAgent);
+
+let url = '';
+
+if (banco === 'bbva') {
+url = isAndroid ? 'intent://#Intent;scheme=bancomer;package=com.bancomer.mbanking;end' : 'bancomer://';
+} else if (banco === 'banamex') {
+url = isAndroid ? 'intent://#Intent;scheme=banamex;package=com.banamex.movil;end' : 'banamex://';
+} else if (banco === 'santander') {
+url = isAndroid ? 'intent://#Intent;scheme=santandermx;package=mx.com.santander.supermovil;end' : 'santandermx://';
+} else if (banco === 'mercadopago') {
+url = isAndroid ? 'intent://#Intent;scheme=mercadopago;package=com.mercadopago.wallet;end' : 'mercadopago://';
+}
+
+if (url) {
+window.location.href = url;
+
+setTimeout(() => {
+if (document.hasFocus()) {
+alert("No se detectó la aplicación en tu dispositivo. Asegúrate de tenerla instalada o utiliza la opción de copiar la CLABE para realizar el pago manualmente.");
+}
+}, 2500);
+}
 }
 </script>
 
