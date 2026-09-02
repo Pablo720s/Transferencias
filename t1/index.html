@@ -192,37 +192,6 @@ transform: scale(0.98);
 background: rgba(255, 255, 255, 0.25);
 }
 
-/* ESTILOS PARA LOS BOTONES BANCARIOS */
-.bank-apps-container {
-display: grid;
-grid-template-columns: 1fr 1fr;
-gap: 8px;
-margin-top: 12px;
-margin-bottom: 6px;
-}
-
-.btn-bank-app {
-display: flex;
-align-items: center;
-justify-content: center;
-background: rgba(255, 255, 255, 0.05);
-border: 1px solid rgba(255, 255, 255, 0.15);
-color: #ffffff;
-padding: 10px;
-border-radius: 10px;
-font-size: 0.75rem;
-font-weight: 600;
-text-decoration: none;
-transition: all 0.2s ease;
-cursor: pointer;
-font-family: inherit;
-}
-
-.btn-bank-app:active {
-transform: scale(0.95);
-background: rgba(255, 255, 255, 0.15);
-}
-
 .btn-whatsapp {
 display: flex;
 align-items: center;
@@ -301,13 +270,6 @@ border-color: rgba(255, 255, 255, 0.25);
 <div class="value" id="clabeVal">000000000000000000</div>
 
 <button class="btn-large-copy" id="btnClabe" onclick="copiarDato('clabeVal', 'btnClabe', true)">Copiar CLABE</button>
-</div>
-
-<div class="bank-apps-container">
-<a href="https://www.bbva.mx/" class="btn-bank-app">Abrir BBVA</a>
-<a href="https://www.banamex.com/" class="btn-bank-app">Abrir Banamex</a>
-<a href="https://www.santander.com.mx/" class="btn-bank-app">Abrir Santander</a>
-<a href="https://www.mercadopago.com.mx/" class="btn-bank-app">Mercado Pago</a>
 </div>
 
 <a href="https://wa.me/0000000000?text=Hola,%20adjunto%20mi%20comprobante%20de%20pago" class="btn-whatsapp" target="_blank">
