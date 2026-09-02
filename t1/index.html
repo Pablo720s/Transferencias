@@ -385,29 +385,20 @@ btn.style.borderColor = "";
 }
 
 function abrirAppBancaria(banco) {
-const userAgent = navigator.userAgent || navigator.vendor || window.opera;
-const isAndroid = /android/i.test(userAgent);
-
 let url = '';
 
 if (banco === 'bbva') {
-url = isAndroid ? 'intent://#Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;package=com.bancomer.mbanking;end' : 'bbva://';
+url = 'https://www.bbva.mx/';
 } else if (banco === 'banamex') {
-url = isAndroid ? 'intent://#Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;package=com.banamex.movil;end' : 'citibanamex://';
+url = 'https://www.banamex.com/';
 } else if (banco === 'santander') {
-url = isAndroid ? 'intent://#Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;package=mx.com.santander.supermovil;end' : 'santander://';
+url = 'https://www.santander.com.mx/';
 } else if (banco === 'mercadopago') {
-url = isAndroid ? 'intent://#Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;package=com.mercadopago.wallet;end' : 'mercadopago://';
+url = 'https://www.mercadopago.com.mx/';
 }
 
 if (url) {
 window.location.href = url;
-
-setTimeout(() => {
-if (document.hasFocus()) {
-alert("Tu navegador está bloqueando la redirección automática o la app no se encuentra instalada. Por favor, utiliza el botón de copiar CLABE y abre tu aplicación manualmente.");
-}
-}, 2500);
 }
 }
 </script>
