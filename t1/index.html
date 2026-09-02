@@ -304,10 +304,10 @@ border-color: rgba(255, 255, 255, 0.25);
 </div>
 
 <div class="bank-apps-container">
-<button class="btn-bank-app" onclick="abrirAppBancaria('bbva')">Abrir BBVA</button>
-<button class="btn-bank-app" onclick="abrirAppBancaria('banamex')">Abrir Banamex</button>
-<button class="btn-bank-app" onclick="abrirAppBancaria('santander')">Abrir Santander</button>
-<button class="btn-bank-app" onclick="abrirAppBancaria('mercadopago')">Mercado Pago</button>
+<a href="https://www.bbva.mx/" class="btn-bank-app">Abrir BBVA</a>
+<a href="https://www.banamex.com/" class="btn-bank-app">Abrir Banamex</a>
+<a href="https://www.santander.com.mx/" class="btn-bank-app">Abrir Santander</a>
+<a href="https://www.mercadopago.com.mx/" class="btn-bank-app">Mercado Pago</a>
 </div>
 
 <a href="https://wa.me/0000000000?text=Hola,%20adjunto%20mi%20comprobante%20de%20pago" class="btn-whatsapp" target="_blank">
@@ -382,24 +382,6 @@ btn.style.color = "";
 btn.style.borderColor = "";
 }, 1800);
 });
-}
-
-function abrirAppBancaria(banco) {
-let url = '';
-
-if (banco === 'bbva') {
-url = 'https://www.bbva.mx/';
-} else if (banco === 'banamex') {
-url = 'https://www.banamex.com/';
-} else if (banco === 'santander') {
-url = 'https://www.santander.com.mx/';
-} else if (banco === 'mercadopago') {
-url = 'https://www.mercadopago.com.mx/';
-}
-
-if (url) {
-window.location.href = url;
-}
 }
 </script>
 
