@@ -391,13 +391,13 @@ const isAndroid = /android/i.test(userAgent);
 let url = '';
 
 if (banco === 'bbva') {
-url = isAndroid ? 'intent://#Intent;scheme=bancomer;package=com.bancomer.mbanking;end' : 'bancomer://';
+url = isAndroid ? 'intent://#Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;package=com.bancomer.mbanking;end' : 'bbva://';
 } else if (banco === 'banamex') {
-url = isAndroid ? 'intent://#Intent;scheme=banamex;package=com.banamex.movil;end' : 'banamex://';
+url = isAndroid ? 'intent://#Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;package=com.banamex.movil;end' : 'citibanamex://';
 } else if (banco === 'santander') {
-url = isAndroid ? 'intent://#Intent;scheme=santandermx;package=mx.com.santander.supermovil;end' : 'santandermx://';
+url = isAndroid ? 'intent://#Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;package=mx.com.santander.supermovil;end' : 'santander://';
 } else if (banco === 'mercadopago') {
-url = isAndroid ? 'intent://#Intent;scheme=mercadopago;package=com.mercadopago.wallet;end' : 'mercadopago://';
+url = isAndroid ? 'intent://#Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;package=com.mercadopago.wallet;end' : 'mercadopago://';
 }
 
 if (url) {
@@ -405,7 +405,7 @@ window.location.href = url;
 
 setTimeout(() => {
 if (document.hasFocus()) {
-alert("No se detectó la aplicación en tu dispositivo. Asegúrate de tenerla instalada o utiliza la opción de copiar la CLABE para realizar el pago manualmente.");
+alert("Tu navegador está bloqueando la redirección automática o la app no se encuentra instalada. Por favor, utiliza el botón de copiar CLABE y abre tu aplicación manualmente.");
 }
 }, 2500);
 }
