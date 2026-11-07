@@ -1,1 +1,419 @@
-<!DOCTYPE html> <html lang="es"> <head> <meta charset="UTF-8"> <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"> <title>Jerkof - Semáforo de Comida</title> <style> :root { /* Identidad Rojo Pasión & Glassmorphism */ --bg-dark: #0a0002; --glass-bg: rgba(60, 0, 10, 0.4); --glass-border: rgba(255, 30, 50, 0.25); --accent-red: #e60026; --text-color: #ffeaef; /* Variable para el resplandor dinámico del semáforo */ --glow-color: transparent; } * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Helvetica Neue', 'Segoe UI', system-ui, sans-serif; } body { background-color: var(--bg-dark); color: var(--text-color); overflow: hidden; /* Evita scroll */ height: 100vh; width: 100vw; display: flex; align-items: center; justify-content: center; } /* --- PANTALLA DE CONFIGURACIÓN --- */ #setup-screen { position: relative; z-index: 10; /* Efecto Glassmorphism */ background: var(--glass-bg); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid var(--glass-border); border-radius: 24px; padding: 40px 25px; width: 90%; max-width: 400px; text-align: center; box-shadow: 0 25px 50px rgba(0, 0, 0, 0.8), inset 0 0 20px rgba(255, 0, 20, 0.15); transition: opacity 0.6s ease, transform 0.6s ease; } h1 { font-size: 2.5rem; margin-bottom: 30px; font-weight: 300; letter-spacing: 6px; color: #ffffff; text-transform: uppercase; text-shadow: 0 0 15px rgba(230, 0, 38, 0.8); } .file-label { display: block; background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(255, 50, 70, 0.3); padding: 16px; border-radius: 12px; cursor: pointer; margin-bottom: 25px; transition: all 0.3s ease; font-size: 0.9rem; letter-spacing: 1px; text-transform: uppercase; color: rgba(255, 255, 255, 0.9); } .file-label:hover, .file-label.loaded { background: rgba(230, 0, 38, 0.25); border-color: #ff4d6d; box-shadow: 0 0 15px rgba(230, 0, 38, 0.3); } #video-input { display: none; } .modes-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 30px; } .mode-btn { background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 50, 70, 0.15); border-radius: 12px; padding: 18px 5px; color: rgba(255, 255, 255, 0.6); font-size: 0.85rem; cursor: pointer; transition: all 0.3s ease; text-transform: uppercase; letter-spacing: 1px; font-weight: 600; } .mode-btn:hover { background: rgba(255, 50, 70, 0.1); color: white; } .mode-btn.active { background: rgba(230, 0, 38, 0.3); border-color: rgba(255, 100, 120, 0.7); color: white; box-shadow: 0 0 20px rgba(230, 0, 38, 0.4); transform: translateY(-2px); } #start-btn { width: 100%; padding: 18px; border: none; border-radius: 12px; background: linear-gradient(135deg, #a30017, #e60026); color: white; font-size: 1rem; font-weight: bold; letter-spacing: 3px; text-transform: uppercase; cursor: pointer; opacity: 0.3; pointer-events: none; transition: all 0.4s ease; } #start-btn.ready { opacity: 1; pointer-events: all; box-shadow: 0 10px 30px rgba(230, 0, 38, 0.6); } /* --- PANTALLA DE REPRODUCCIÓN --- */ #player-screen { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; display: none; background: black; z-index: 20; } video { width: 100%; height: 100%; /* object-fit: cover llena la pantalla sin bordes negros. Cambiar a "contain" si prefieres que no se recorte nada del video original. */ object-fit: cover; position: relative; z-index: 21; } /* --- AMBILIGHT DIFUMINADO ELEGANTE --- */ #glow-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; /* CRUCIAL: permite tocar el video a través de la luz para usar los controles */ pointer-events: none; z-index: 30; /* Por encima del video */ /* Transición suave al cambiar de color */ transition: box-shadow 1.5s ease-in-out; /* Borde luminoso sofisticado y difuminado, no abarca tanto */ box-shadow: inset 0 0 35px 12px var(--glow-color), inset 0 0 10px 2px var(--glow-color); /* Ayuda a que los colores se fusionen con el video de forma más natural */ mix-blend-mode: screen; } </style> </head> <body> <!-- PANTALLA DE INICIO (GLASSMORPHISM) --> <div id="setup-screen"> <h1>Jerkof</h1> <label class="file-label" id="file-label" for="video-input">Subir Video (Local)</label> <input type="file" id="video-input" accept="video/*"> <div class="modes-grid"> <button class="mode-btn" data-mode="neutral">Neutral</button> <button class="mode-btn" data-mode="equilibrado">Equilibrado</button> <button class="mode-btn" data-mode="caotico">Caótico</button> <button class="mode-btn" data-mode="disfrute">Disfrute</button> </div> <button id="start-btn">Comenzar</button> </div> <!-- PANTALLA DE REPRODUCCIÓN --> <div id="player-screen"> <!-- controls="true" permite adelantar y atrasar libremente --> <video id="main-video" controls playsinline></video> <!-- Capa de luz superpuesta, no interfiere con los controles --> <div id="glow-overlay"></div> </div> <script> // Variables del DOM const setupScreen = document.getElementById('setup-screen'); const playerScreen = document.getElementById('player-screen'); const modeBtns = document.querySelectorAll('.mode-btn'); const videoInput = document.getElementById('video-input'); const fileLabel = document.getElementById('file-label'); const startBtn = document.getElementById('start-btn'); const video = document.getElementById('main-video'); const glowOverlay = document.getElementById('glow-overlay'); // Variables de Estado let selectedMode = null; let videoFile = null; let audioCtx = null; let loopTimeout = null; let inJerkofZone = false; // Paleta de colores para el marco luminoso const glowColors = { green: 'rgba(0, 255, 80, 0.65)', yellow: 'rgba(255, 200, 0, 0.65)', red: 'rgba(255, 20, 40, 0.75)', purple: 'rgba(180, 0, 255, 0.65)', jerkof: 'rgba(255, 215, 0, 0.9)' // Dorado glorioso }; // --- MOTOR DE AUDIO (Web Audio API) --- function playTone(type, freq, duration, volume = 0.05) { if (!audioCtx) return; const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain(); osc.type = type; osc.frequency.setValueAtTime(freq, audioCtx.currentTime); // Configuración de volumen sutil gain.gain.setValueAtTime(volume, audioCtx.currentTime); gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration); osc.connect(gain); gain.connect(audioCtx.destination); osc.start(); osc.stop(audioCtx.currentTime + duration); } function triggerSound(color) { if (color === 'green') { playTone('sine', 600, 0.5); // Tono fluido normal } else if (color === 'yellow') { playTone('triangle', 450, 0.3); setTimeout(() => playTone('triangle', 450, 0.3), 150); // Doble tono lento } else if (color === 'red') { playTone('square', 150, 0.6); // Tono grave, paro en seco } else if (color === 'purple') { // 3 tonos rápidos (Rápido, rápido, rápido) playTone('sawtooth', 900, 0.15); setTimeout(() => playTone('sawtooth', 950, 0.15), 100); setTimeout(() => playTone('sawtooth', 1000, 0.15), 200); } else if (color === 'jerkof') { // Acorde majestuoso y glorioso de triunfo ['sine', 'triangle'].forEach(type => { playTone(type, 523.25, 4, 0.08); // C5 playTone(type, 659.25, 4, 0.08); // E5 playTone(type, 783.99, 4, 0.08); // G5 }); } } // --- INTERFAZ DE SELECCIÓN --- modeBtns.forEach(btn => { btn.addEventListener('click', () => { modeBtns.forEach(b => b.classList.remove('active')); btn.classList.add('active'); selectedMode = btn.dataset.mode; checkReady(); }); }); videoInput.addEventListener('change', (e) => { if (e.target.files.length > 0) { videoFile = e.target.files[0]; let name = videoFile.name; fileLabel.textContent = name.length > 20 ? name.substring(0, 20) + "..." : name; fileLabel.classList.add('loaded'); checkReady(); } }); function checkReady() { if (selectedMode && videoFile) { startBtn.classList.add('ready'); } } // --- INICIO DE LA APLICACIÓN --- startBtn.addEventListener('click', () => { if (!selectedMode || !videoFile) return; // Inicializar Audio Context con el clic del usuario (Requisito de navegadores) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); // Cargar video video.src = URL.createObjectURL(videoFile); // Animación de transición setupScreen.style.transform = 'scale(0.9)'; setupScreen.style.opacity = '0'; setTimeout(() => { setupScreen.style.display = 'none'; playerScreen.style.display = 'block'; // Reproducir e iniciar la lógica del semáforo video.play(); startTrafficLightLoop(); }, 600); }); // --- LÓGICA DEL SEMÁFORO Y ALEATORIEDAD --- function getNextState() { const rand = Math.random(); // Probabilidades ajustables según el modo elegido let probs = { green: 0.25, yellow: 0.50, red: 0.75 }; // Neutral por defecto if (selectedMode === 'equilibrado') probs = { green: 0.40, yellow: 0.70, red: 0.85 }; else if (selectedMode === 'caotico') probs = { green: 0.15, yellow: 0.35, red: 0.65 }; else if (selectedMode === 'disfrute') probs = { green: 0.45, yellow: 0.55, red: 0.65 }; let color = 'purple'; if(rand < probs.green) color = 'green'; else if(rand < probs.yellow) color = 'yellow'; else if(rand < probs.red) color = 'red'; // Duraciones dinámicas y aleatorias let min = 3, max = 10; if (color === 'green') { min = 5; max = 15; } if (color === 'red') { min = 2; max = 6; } if (selectedMode === 'caotico') max *= 0.6; // Cambios más rápidos let durationSeconds = Math.random() * (max - min) + min; return { color, durationSeconds }; } function startTrafficLightLoop() { // Si estamos en la zona del final, no iniciar el bucle normal if (inJerkofZone || video.paused || video.ended) return; clearTimeout(loopTimeout); const state = getNextState(); // Aplicar color al Ambilight y sonido glowOverlay.style.setProperty('--glow-color', glowColors[state.color]); triggerSound(state.color); loopTimeout = setTimeout(() => { startTrafficLightLoop(); }, state.durationSeconds * 1000); } // --- SINCRONIZACIÓN Y EL FINAL "JERKOF" --- // El evento timeupdate se dispara constantemente mientras se reproduce o cuando el usuario adelanta/atrasa video.addEventListener('timeupdate', () => { if (isNaN(video.duration)) return; const timeLeft = video.duration - video.currentTime; // Entrando a la zona Jerkof (últimos 20 segundos) if (timeLeft <= 20.0 && timeLeft > 0) { if (!inJerkofZone) { inJerkofZone = true; clearTimeout(loopTimeout); // Detener el semáforo aleatorio // Aplicar el estado de gloria glowOverlay.style.setProperty('--glow-color', glowColors.jerkof); triggerSound('jerkof'); } } // Si el usuario atrasa el video y sale de la zona de los 20 segundos else if (timeLeft > 20.0) { if (inJerkofZone) { inJerkofZone = false; // Reiniciar el semáforo normal startTrafficLightLoop(); } } }); // Pausar/Reanudar el motor si el usuario pausa el video nativamente video.addEventListener('play', () => { if (!inJerkofZone) startTrafficLightLoop(); }); video.addEventListener('pause', () => { clearTimeout(loopTimeout); }); // Apagar luces al terminar el video video.addEventListener('ended', () => { clearTimeout(loopTimeout); glowOverlay.style.setProperty('--glow-color', 'transparent'); inJerkofZone = false; }); </script> </body> </html>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Jerkof - Semáforo de Comida</title>
+<style>
+  :root {
+    /* Identidad Rojo Pasión & Glassmorphism */
+    --bg-dark: #0a0002;
+    --glass-bg: rgba(60, 0, 10, 0.4);
+    --glass-border: rgba(255, 30, 50, 0.25);
+    --accent-red: #e60026;
+    --text-color: #ffeaef;
+    
+    /* Variable para el resplandor dinámico del semáforo */
+    --glow-color: transparent;
+  }
+  
+  * { 
+    box-sizing: border-box; 
+    margin: 0; 
+    padding: 0; 
+    font-family: 'Helvetica Neue', 'Segoe UI', system-ui, sans-serif; 
+  }
+  
+  body { 
+    background-color: var(--bg-dark); 
+    color: var(--text-color); 
+    overflow: hidden; /* Evita scroll */
+    height: 100vh; 
+    width: 100vw; 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+  }
+  
+  /* --- PANTALLA DE CONFIGURACIÓN --- */
+  #setup-screen {
+    position: relative;
+    z-index: 10;
+    /* Efecto Glassmorphism */
+    background: var(--glass-bg);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--glass-border);
+    border-radius: 24px;
+    padding: 40px 25px;
+    width: 90%;
+    max-width: 400px;
+    text-align: center;
+    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.8), inset 0 0 20px rgba(255, 0, 20, 0.15);
+    transition: opacity 0.6s ease, transform 0.6s ease;
+  }
+  
+  h1 { 
+    font-size: 2.5rem; 
+    margin-bottom: 30px; 
+    font-weight: 300; 
+    letter-spacing: 6px; 
+    color: #ffffff; 
+    text-transform: uppercase; 
+    text-shadow: 0 0 15px rgba(230, 0, 38, 0.8);
+  }
+  
+  .file-label {
+    display: block;
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(255, 50, 70, 0.3);
+    padding: 16px;
+    border-radius: 12px;
+    cursor: pointer;
+    margin-bottom: 25px;
+    transition: all 0.3s ease;
+    font-size: 0.9rem;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.9);
+  }
+  
+  .file-label:hover, .file-label.loaded { 
+    background: rgba(230, 0, 38, 0.25); 
+    border-color: #ff4d6d; 
+    box-shadow: 0 0 15px rgba(230, 0, 38, 0.3);
+  }
+  
+  #video-input { display: none; }
+  
+  .modes-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 30px;
+  }
+  
+  .mode-btn {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 50, 70, 0.15);
+    border-radius: 12px;
+    padding: 18px 5px;
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 600;
+  }
+  
+  .mode-btn:hover { 
+    background: rgba(255, 50, 70, 0.1); 
+    color: white;
+  }
+  
+  .mode-btn.active {
+    background: rgba(230, 0, 38, 0.3);
+    border-color: rgba(255, 100, 120, 0.7);
+    color: white;
+    box-shadow: 0 0 20px rgba(230, 0, 38, 0.4);
+    transform: translateY(-2px);
+  }
+  
+  #start-btn {
+    width: 100%;
+    padding: 18px;
+    border: none;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #a30017, #e60026);
+    color: white;
+    font-size: 1rem;
+    font-weight: bold;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    cursor: pointer;
+    opacity: 0.3;
+    pointer-events: none;
+    transition: all 0.4s ease;
+  }
+  
+  #start-btn.ready { 
+    opacity: 1; 
+    pointer-events: all; 
+    box-shadow: 0 10px 30px rgba(230, 0, 38, 0.6); 
+  }
+  
+  /* --- PANTALLA DE REPRODUCCIÓN --- */
+  #player-screen {
+    position: absolute;
+    top: 0; left: 0; 
+    width: 100vw; height: 100vh;
+    display: none;
+    background: black;
+    z-index: 20;
+  }
+  
+  video {
+    width: 100%; 
+    height: 100%;
+    /* object-fit: cover llena la pantalla sin bordes negros. 
+       Cambiar a "contain" si prefieres que no se recorte nada del video original. */
+    object-fit: cover; 
+    position: relative;
+    z-index: 21;
+  }
+  
+  /* --- AMBILIGHT DIFUMINADO ELEGANTE --- */
+  #glow-overlay {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    /* CRUCIAL: permite tocar el video a través de la luz para usar los controles */
+    pointer-events: none; 
+    z-index: 30; /* Por encima del video */
+    
+    /* Transición suave al cambiar de color */
+    transition: box-shadow 1.5s ease-in-out;
+    
+    /* Borde luminoso sofisticado y difuminado, no abarca tanto */
+    box-shadow: inset 0 0 35px 12px var(--glow-color), 
+                inset 0 0 10px 2px var(--glow-color);
+    
+    /* Ayuda a que los colores se fusionen con el video de forma más natural */
+    mix-blend-mode: screen; 
+  }
+</style>
+</head>
+<body>
+
+<!-- PANTALLA DE INICIO (GLASSMORPHISM) -->
+<div id="setup-screen">
+  <h1>Jerkof</h1>
+  
+  <label class="file-label" id="file-label" for="video-input">Subir Video (Local)</label>
+  <input type="file" id="video-input" accept="video/*">
+
+  <div class="modes-grid">
+    <button class="mode-btn" data-mode="neutral">Neutral</button>
+    <button class="mode-btn" data-mode="equilibrado">Equilibrado</button>
+    <button class="mode-btn" data-mode="caotico">Caótico</button>
+    <button class="mode-btn" data-mode="disfrute">Disfrute</button>
+  </div>
+  
+  <button id="start-btn">Comenzar</button>
+</div>
+
+<!-- PANTALLA DE REPRODUCCIÓN -->
+<div id="player-screen">
+  <!-- controls="true" permite adelantar y atrasar libremente -->
+  <video id="main-video" controls playsinline></video>
+  <!-- Capa de luz superpuesta, no interfiere con los controles -->
+  <div id="glow-overlay"></div>
+</div>
+
+<script>
+  // Variables del DOM
+  const setupScreen = document.getElementById('setup-screen');
+  const playerScreen = document.getElementById('player-screen');
+  const modeBtns = document.querySelectorAll('.mode-btn');
+  const videoInput = document.getElementById('video-input');
+  const fileLabel = document.getElementById('file-label');
+  const startBtn = document.getElementById('start-btn');
+  const video = document.getElementById('main-video');
+  const glowOverlay = document.getElementById('glow-overlay');
+  
+  // Variables de Estado
+  let selectedMode = null;
+  let videoFile = null;
+  let audioCtx = null;
+  let loopTimeout = null;
+  let inJerkofZone = false;
+
+  // Paleta de colores para el marco luminoso
+  const glowColors = {
+    green: 'rgba(0, 255, 80, 0.65)',
+    yellow: 'rgba(255, 200, 0, 0.65)',
+    red: 'rgba(255, 20, 40, 0.75)',
+    purple: 'rgba(180, 0, 255, 0.65)',
+    jerkof: 'rgba(255, 215, 0, 0.9)' // Dorado glorioso
+  };
+
+  // --- MOTOR DE AUDIO (Web Audio API) ---
+  function playTone(type, freq, duration, volume = 0.05) {
+    if (!audioCtx) return;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+    
+    // Configuración de volumen sutil
+    gain.gain.setValueAtTime(volume, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+    
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + duration);
+  }
+
+  function triggerSound(color) {
+    if (color === 'green') {
+      playTone('sine', 600, 0.5); // Tono fluido normal
+    } else if (color === 'yellow') {
+      playTone('triangle', 450, 0.3); 
+      setTimeout(() => playTone('triangle', 450, 0.3), 150); // Doble tono lento
+    } else if (color === 'red') {
+      playTone('square', 150, 0.6); // Tono grave, paro en seco
+    } else if (color === 'purple') {
+      // 3 tonos rápidos (Rápido, rápido, rápido)
+      playTone('sawtooth', 900, 0.15);
+      setTimeout(() => playTone('sawtooth', 950, 0.15), 100);
+      setTimeout(() => playTone('sawtooth', 1000, 0.15), 200);
+    } else if (color === 'jerkof') {
+      // Acorde majestuoso y glorioso de triunfo
+      ['sine', 'triangle'].forEach(type => {
+        playTone(type, 523.25, 4, 0.08); // C5
+        playTone(type, 659.25, 4, 0.08); // E5
+        playTone(type, 783.99, 4, 0.08); // G5
+      });
+    }
+  }
+
+  // --- INTERFAZ DE SELECCIÓN ---
+  modeBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      modeBtns.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      selectedMode = btn.dataset.mode;
+      checkReady();
+    });
+  });
+
+  videoInput.addEventListener('change', (e) => {
+    if (e.target.files.length > 0) {
+      videoFile = e.target.files[0];
+      let name = videoFile.name;
+      fileLabel.textContent = name.length > 20 ? name.substring(0, 20) + "..." : name;
+      fileLabel.classList.add('loaded');
+      checkReady();
+    }
+  });
+
+  function checkReady() {
+    if (selectedMode && videoFile) {
+      startBtn.classList.add('ready');
+    }
+  }
+
+  // --- INICIO DE LA APLICACIÓN ---
+  startBtn.addEventListener('click', () => {
+    if (!selectedMode || !videoFile) return;
+    
+    // Inicializar Audio Context con el clic del usuario (Requisito de navegadores)
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    
+    // Cargar video
+    video.src = URL.createObjectURL(videoFile);
+    
+    // Animación de transición
+    setupScreen.style.transform = 'scale(0.9)';
+    setupScreen.style.opacity = '0';
+    
+    setTimeout(() => {
+      setupScreen.style.display = 'none';
+      playerScreen.style.display = 'block';
+      
+      // Reproducir e iniciar la lógica del semáforo
+      video.play();
+      startTrafficLightLoop();
+    }, 600);
+  });
+
+  // --- LÓGICA DEL SEMÁFORO Y ALEATORIEDAD ---
+  function getNextState() {
+    const rand = Math.random();
+    // Probabilidades ajustables según el modo elegido
+    let probs = { green: 0.25, yellow: 0.50, red: 0.75 }; // Neutral por defecto
+    
+    if (selectedMode === 'equilibrado') probs = { green: 0.40, yellow: 0.70, red: 0.85 };
+    else if (selectedMode === 'caotico') probs = { green: 0.15, yellow: 0.35, red: 0.65 };
+    else if (selectedMode === 'disfrute') probs = { green: 0.45, yellow: 0.55, red: 0.65 };
+
+    let color = 'purple';
+    if(rand < probs.green) color = 'green';
+    else if(rand < probs.yellow) color = 'yellow';
+    else if(rand < probs.red) color = 'red';
+
+    // Duraciones dinámicas y aleatorias
+    let min = 3, max = 10;
+    if (color === 'green') { min = 5; max = 15; }
+    if (color === 'red') { min = 2; max = 6; }
+    if (selectedMode === 'caotico') max *= 0.6; // Cambios más rápidos
+
+    let durationSeconds = Math.random() * (max - min) + min;
+    return { color, durationSeconds };
+  }
+
+  function startTrafficLightLoop() {
+    // Si estamos en la zona del final, no iniciar el bucle normal
+    if (inJerkofZone || video.paused || video.ended) return;
+
+    clearTimeout(loopTimeout);
+    
+    const state = getNextState();
+    
+    // Aplicar color al Ambilight y sonido
+    glowOverlay.style.setProperty('--glow-color', glowColors[state.color]);
+    triggerSound(state.color);
+
+    loopTimeout = setTimeout(() => {
+      startTrafficLightLoop();
+    }, state.durationSeconds * 1000);
+  }
+
+  // --- SINCRONIZACIÓN Y EL FINAL "JERKOF" ---
+  // El evento timeupdate se dispara constantemente mientras se reproduce o cuando el usuario adelanta/atrasa
+  video.addEventListener('timeupdate', () => {
+    if (isNaN(video.duration)) return;
+    
+    const timeLeft = video.duration - video.currentTime;
+    
+    // Entrando a la zona Jerkof (últimos 20 segundos)
+    if (timeLeft <= 20.0 && timeLeft > 0) {
+      if (!inJerkofZone) {
+        inJerkofZone = true;
+        clearTimeout(loopTimeout); // Detener el semáforo aleatorio
+        
+        // Aplicar el estado de gloria
+        glowOverlay.style.setProperty('--glow-color', glowColors.jerkof);
+        triggerSound('jerkof');
+      }
+    } 
+    // Si el usuario atrasa el video y sale de la zona de los 20 segundos
+    else if (timeLeft > 20.0) {
+      if (inJerkofZone) {
+        inJerkofZone = false;
+        // Reiniciar el semáforo normal
+        startTrafficLightLoop();
+      }
+    }
+  });
+
+  // Pausar/Reanudar el motor si el usuario pausa el video nativamente
+  video.addEventListener('play', () => {
+    if (!inJerkofZone) startTrafficLightLoop();
+  });
+  
+  video.addEventListener('pause', () => {
+    clearTimeout(loopTimeout);
+  });
+  
+  // Apagar luces al terminar el video
+  video.addEventListener('ended', () => {
+    clearTimeout(loopTimeout);
+    glowOverlay.style.setProperty('--glow-color', 'transparent');
+    inJerkofZone = false;
+  });
+
+</script>
+</body>
+</html>
