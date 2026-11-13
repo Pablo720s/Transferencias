@@ -1,419 +1,999 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Jerkof - Semáforo de Comida</title>
-<style>
-  :root {
-    /* Identidad Rojo Pasión & Glassmorphism */
-    --bg-dark: #0a0002;
-    --glass-bg: rgba(60, 0, 10, 0.4);
-    --glass-border: rgba(255, 30, 50, 0.25);
-    --accent-red: #e60026;
-    --text-color: #ffeaef;
-    
-    /* Variable para el resplandor dinámico del semáforo */
-    --glow-color: transparent;
-  }
-  
-  * { 
-    box-sizing: border-box; 
-    margin: 0; 
-    padding: 0; 
-    font-family: 'Helvetica Neue', 'Segoe UI', system-ui, sans-serif; 
-  }
-  
-  body { 
-    background-color: var(--bg-dark); 
-    color: var(--text-color); 
-    overflow: hidden; /* Evita scroll */
-    height: 100vh; 
-    width: 100vw; 
-    display: flex; 
-    align-items: center; 
-    justify-content: center; 
-  }
-  
-  /* --- PANTALLA DE CONFIGURACIÓN --- */
-  #setup-screen {
-    position: relative;
-    z-index: 10;
-    /* Efecto Glassmorphism */
-    background: var(--glass-bg);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border: 1px solid var(--glass-border);
-    border-radius: 24px;
-    padding: 40px 25px;
-    width: 90%;
-    max-width: 400px;
-    text-align: center;
-    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.8), inset 0 0 20px rgba(255, 0, 20, 0.15);
-    transition: opacity 0.6s ease, transform 0.6s ease;
-  }
-  
-  h1 { 
-    font-size: 2.5rem; 
-    margin-bottom: 30px; 
-    font-weight: 300; 
-    letter-spacing: 6px; 
-    color: #ffffff; 
-    text-transform: uppercase; 
-    text-shadow: 0 0 15px rgba(230, 0, 38, 0.8);
-  }
-  
-  .file-label {
-    display: block;
-    background: rgba(0, 0, 0, 0.4);
-    border: 1px solid rgba(255, 50, 70, 0.3);
-    padding: 16px;
-    border-radius: 12px;
-    cursor: pointer;
-    margin-bottom: 25px;
-    transition: all 0.3s ease;
-    font-size: 0.9rem;
-    letter-spacing: 1px;
-    text-transform: uppercase;
-    color: rgba(255, 255, 255, 0.9);
-  }
-  
-  .file-label:hover, .file-label.loaded { 
-    background: rgba(230, 0, 38, 0.25); 
-    border-color: #ff4d6d; 
-    box-shadow: 0 0 15px rgba(230, 0, 38, 0.3);
-  }
-  
-  #video-input { display: none; }
-  
-  .modes-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
-    margin-bottom: 30px;
-  }
-  
-  .mode-btn {
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 50, 70, 0.15);
-    border-radius: 12px;
-    padding: 18px 5px;
-    color: rgba(255, 255, 255, 0.6);
-    font-size: 0.85rem;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    font-weight: 600;
-  }
-  
-  .mode-btn:hover { 
-    background: rgba(255, 50, 70, 0.1); 
-    color: white;
-  }
-  
-  .mode-btn.active {
-    background: rgba(230, 0, 38, 0.3);
-    border-color: rgba(255, 100, 120, 0.7);
-    color: white;
-    box-shadow: 0 0 20px rgba(230, 0, 38, 0.4);
-    transform: translateY(-2px);
-  }
-  
-  #start-btn {
-    width: 100%;
-    padding: 18px;
-    border: none;
-    border-radius: 12px;
-    background: linear-gradient(135deg, #a30017, #e60026);
-    color: white;
-    font-size: 1rem;
-    font-weight: bold;
-    letter-spacing: 3px;
-    text-transform: uppercase;
-    cursor: pointer;
-    opacity: 0.3;
-    pointer-events: none;
-    transition: all 0.4s ease;
-  }
-  
-  #start-btn.ready { 
-    opacity: 1; 
-    pointer-events: all; 
-    box-shadow: 0 10px 30px rgba(230, 0, 38, 0.6); 
-  }
-  
-  /* --- PANTALLA DE REPRODUCCIÓN --- */
-  #player-screen {
-    position: absolute;
-    top: 0; left: 0; 
-    width: 100vw; height: 100vh;
-    display: none;
-    background: black;
-    z-index: 20;
-  }
-  
-  video {
-    width: 100%; 
-    height: 100%;
-    /* object-fit: cover llena la pantalla sin bordes negros. 
-       Cambiar a "contain" si prefieres que no se recorte nada del video original. */
-    object-fit: cover; 
-    position: relative;
-    z-index: 21;
-  }
-  
-  /* --- AMBILIGHT DIFUMINADO ELEGANTE --- */
-  #glow-overlay {
-    position: absolute;
-    top: 0; left: 0; right: 0; bottom: 0;
-    /* CRUCIAL: permite tocar el video a través de la luz para usar los controles */
-    pointer-events: none; 
-    z-index: 30; /* Por encima del video */
-    
-    /* Transición suave al cambiar de color */
-    transition: box-shadow 1.5s ease-in-out;
-    
-    /* Borde luminoso sofisticado y difuminado, no abarca tanto */
-    box-shadow: inset 0 0 35px 12px var(--glow-color), 
-                inset 0 0 10px 2px var(--glow-color);
-    
-    /* Ayuda a que los colores se fusionen con el video de forma más natural */
-    mix-blend-mode: screen; 
-  }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Jerkof - Smart Pacing</title>
+    <style>
+        :root {
+            --red: #ff1a1a;
+            --green: #00ff88;
+            --yellow: #ffcc00;
+            --purple: #aa00ff;
+            --gold: #ffd700;
+            --glass-bg: rgba(20, 0, 5, 0.6);
+            --glass-border: rgba(255, 26, 26, 0.3);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body, html {
+            width: 100%;
+            height: 100%;
+            background-color: #000;
+            color: #fff;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            overflow: hidden;
+        }
+
+        /* Contenedor principal del video */
+        #videoContainer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            cursor: pointer;
+        }
+
+        #mainVideo {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: filter 0.5s ease;
+            pointer-events: none;
+        }
+
+        /* Efecto Ambilight Superior (Franja en la zona del metrónomo) */
+        #ambilight {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 120px;
+            pointer-events: none;
+            z-index: 2;
+            transition: background 0.6s ease, opacity 0.6s ease;
+        }
+
+        /* Metrónomo Superior */
+        #metronomeBar {
+            position: absolute;
+            top: 22px;
+            left: 10%;
+            width: 80%;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 4px;
+            z-index: 5;
+            display: none;
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+        }
+
+        #metronomeDot {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #fff;
+            position: absolute;
+            top: -6px;
+            left: 0%;
+            box-shadow: 0 0 15px currentColor;
+            transition: background 0.5s ease, box-shadow 0.5s ease;
+        }
+
+        /* Interfaz de Configuración (Glassmorphism) */
+        #setupUI {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 30;
+            background: radial-gradient(circle, rgba(40,0,10,0.9) 0%, #000 100%);
+            backdrop-filter: blur(15px);
+            padding: 20px;
+        }
+
+        .glass-panel {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            padding: 30px 20px;
+            width: 100%;
+            max-width: 400px;
+            box-shadow: 0 15px 35px rgba(255, 26, 26, 0.15), inset 0 0 15px rgba(255, 26, 26, 0.1);
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--red);
+            font-size: 2.2rem;
+            margin-bottom: 10px;
+            text-shadow: 0 0 20px rgba(255,26,26,0.5);
+            font-weight: 800;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        .setting-group {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .setting-group:last-child {
+            border-bottom: none;
+        }
+
+        label {
+            font-size: 0.95rem;
+            color: #ddd;
+            flex: 1;
+            min-width: 120px;
+        }
+
+        .toggle-btn, .select-btn {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--red);
+            color: #fff;
+            padding: 8px 12px;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            outline: none;
+        }
+
+        .select-btn {
+            flex: 1;
+            text-align: center;
+        }
+
+        .select-btn option {
+            background: #111;
+            color: #fff;
+        }
+
+        .toggle-btn.active {
+            background: var(--red);
+            box-shadow: 0 0 15px rgba(255,26,26,0.6);
+            color: #000;
+            font-weight: bold;
+        }
+
+        .upload-btn {
+            background: linear-gradient(45deg, #ff0044, #aa00ff);
+            border: none;
+            color: white;
+            padding: 15px;
+            border-radius: 16px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            margin-top: 15px;
+            cursor: pointer;
+            box-shadow: 0 10px 20px rgba(255, 0, 68, 0.4);
+            transition: transform 0.2s;
+        }
+
+        .upload-btn:active {
+            transform: scale(0.95);
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        /* Controles de Video en Juego (Estética Glassmorphism) */
+        #videoControls {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            pointer-events: none;
+            flex-direction: column;
+            gap: 15px;
+            z-index: 15;
+            background: linear-gradient(135deg, rgba(40, 0, 15, 0.5), rgba(20, 0, 5, 0.3));
+            padding: 20px 25px;
+            border-radius: 30px;
+            backdrop-filter: blur(25px) saturate(150%);
+            -webkit-backdrop-filter: blur(25px) saturate(150%);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.6), inset 0 0 20px rgba(255, 26, 26, 0.2);
+            width: 90%;
+            max-width: 450px;
+            opacity: 0;
+            transition: opacity 0.4s ease;
+        }
+
+        #videoControls.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .control-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            width: 100%;
+        }
+
+        .progress-container {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: #eee;
+            font-size: 0.85rem;
+            font-family: monospace;
+            text-shadow: 0 0 5px rgba(0,0,0,0.8);
+        }
+
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            background: #fff;
+            cursor: pointer;
+            margin-top: -6px;
+            box-shadow: 0 0 15px var(--red), 0 0 5px #fff;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        input[type=range]::-webkit-slider-thumb:active {
+            transform: scale(1.3);
+            box-shadow: 0 0 20px var(--red), 0 0 10px #fff;
+        }
+
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: rgba(255, 255, 255, 0.25);
+            border-radius: 2px;
+            box-shadow: inset 0 0 5px rgba(0,0,0,0.5);
+        }
+
+        .ctrl-btn {
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: white;
+            cursor: pointer;
+            padding: 12px 16px;
+            border-radius: 16px;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        .ctrl-btn svg {
+            width: 20px;
+            height: 20px;
+            stroke: currentColor;
+            fill: none;
+            stroke-width: 1.8;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .ctrl-btn:hover, .ctrl-btn:active {
+            background: rgba(255, 26, 26, 0.3);
+            border-color: rgba(255, 26, 26, 0.6);
+            transform: scale(1.08);
+            box-shadow: 0 8px 25px rgba(255, 26, 26, 0.4);
+        }
+
+        /* Pantalla de Pausa / Edging */
+        #pauseOverlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            z-index: 20;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 20px;
+        }
+
+        #pausePhrase {
+            font-size: 2rem;
+            color: var(--red);
+            margin-bottom: 30px;
+            font-weight: 300;
+            text-shadow: 0 0 15px rgba(255,26,26,0.4);
+            opacity: 0;
+            transition: opacity 1s ease;
+        }
+
+        #pauseTimer {
+            font-size: 4rem;
+            font-weight: bold;
+            color: #fff;
+            transition: font-size 0.5s ease, color 0.5s ease;
+        }
+
+        .huge-timer {
+            font-size: 10rem !important;
+            color: var(--red) !important;
+            text-shadow: 0 0 40px rgba(255,26,26,0.8);
+        }
+
+        /* Pantalla de Gloria / Clímax */
+        #goldenOverlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            box-shadow: inset 0 0 150px 50px rgba(255, 215, 0, 0.6);
+            pointer-events: none;
+            z-index: 4;
+            display: none;
+            animation: pulseGold 2s infinite alternate;
+        }
+
+        @keyframes pulseGold {
+            0% { box-shadow: inset 0 0 100px 30px rgba(255, 215, 0, 0.4); }
+            100% { box-shadow: inset 0 0 200px 60px rgba(255, 215, 0, 0.8); }
+        }
+    </style>
 </head>
 <body>
 
-<!-- PANTALLA DE INICIO (GLASSMORPHISM) -->
-<div id="setup-screen">
-  <h1>Jerkof</h1>
-  
-  <label class="file-label" id="file-label" for="video-input">Subir Video (Local)</label>
-  <input type="file" id="video-input" accept="video/*">
+    <!-- Menú de Configuración -->
+    <div id="setupUI">
+        <div class="glass-panel">
+            <h1>Jerkof</h1>
+            <div class="setting-group">
+                <label>Ajuste de Pantalla</label>
+                <button class="toggle-btn active" id="btnFit" onclick="toggleFit()">Llenar (Vertical)</button>
+            </div>
+            <div class="setting-group">
+                <label>Modo de Semáforo</label>
+                <select class="select-btn" id="modeSelect">
+                    <option value="progressive">Niveles Progresivos</option>
+                    <option value="random">Totalmente Aleatorio</option>
+                </select>
+            </div>
+            <div class="setting-group">
+                <label>Duración</label>
+                <select class="select-btn" id="durationSelect">
+                    <option value="auto">Adaptar al Video</option>
+                    <option value="15">15 Minutos (Forzar)</option>
+                    <option value="30">30 Minutos (Forzar)</option>
+                    <option value="45">45 Minutos (Forzar)</option>
+                </select>
+            </div>
+            <input type="file" id="videoUpload" accept="video/*">
+            <button class="upload-btn" onclick="document.getElementById('videoUpload').click()">Seleccionar Video y Empezar</button>
+        </div>
+    </div>
 
-  <div class="modes-grid">
-    <button class="mode-btn" data-mode="neutral">Neutral</button>
-    <button class="mode-btn" data-mode="equilibrado">Equilibrado</button>
-    <button class="mode-btn" data-mode="caotico">Caótico</button>
-    <button class="mode-btn" data-mode="disfrute">Disfrute</button>
-  </div>
-  
-  <button id="start-btn">Comenzar</button>
-</div>
+    <!-- Contenedor Principal (Captura clicks) -->
+    <div id="videoContainer">
+        <video id="mainVideo" playsinline></video>
+    </div>
+    
+    <!-- Resplandor Superior y Zona Dorada -->
+    <div id="ambilight"></div>
+    <div id="goldenOverlay"></div>
 
-<!-- PANTALLA DE REPRODUCCIÓN -->
-<div id="player-screen">
-  <!-- controls="true" permite adelantar y atrasar libremente -->
-  <video id="main-video" controls playsinline></video>
-  <!-- Capa de luz superpuesta, no interfiere con los controles -->
-  <div id="glow-overlay"></div>
-</div>
+    <!-- Barra del Metrónomo Superior -->
+    <div id="metronomeBar">
+        <div id="metronomeDot"></div>
+    </div>
+
+    <!-- Controles en Juego (Auto-ocultables con barra de deslizamiento e iconos SVG) -->
+    <div id="videoControls">
+        <div class="progress-container">
+            <span id="currentTimeText">00:00</span>
+            <input type="range" id="seekBar" min="0" max="100" value="0" step="0.1">
+            <span id="durationTimeText">00:00</span>
+        </div>
+        <div class="control-row">
+            <button class="ctrl-btn back-btn" onclick="returnToMenu()" title="Detener">
+                <svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+            </button>
+            <button class="ctrl-btn" onclick="skip(-10)" title="Retroceder 10s">
+                <svg viewBox="0 0 24 24"><polygon points="11 19 2 12 11 5 11 19"/><polygon points="22 19 13 12 22 5 22 19"/></svg>
+            </button>
+            <button class="ctrl-btn" id="playPauseBtn" onclick="togglePlay()" title="Pausar/Reproducir">
+                <svg viewBox="0 0 24 24"><line x1="9" y1="5" x2="9" y2="19"/><line x1="15" y1="5" x2="15" y2="19"/></svg>
+            </button>
+            <button class="ctrl-btn" onclick="skip(10)" title="Adelantar 10s">
+                <svg viewBox="0 0 24 24"><polygon points="13 19 22 12 13 5 13 19"/><polygon points="2 19 11 12 2 5 2 19"/></svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- Pantalla de Edging / Pausa -->
+    <div id="pauseOverlay">
+        <div id="pausePhrase">Ya casi...</div>
+        <div id="pauseTimer">30</div>
+    </div>
 
 <script>
-  // Variables del DOM
-  const setupScreen = document.getElementById('setup-screen');
-  const playerScreen = document.getElementById('player-screen');
-  const modeBtns = document.querySelectorAll('.mode-btn');
-  const videoInput = document.getElementById('video-input');
-  const fileLabel = document.getElementById('file-label');
-  const startBtn = document.getElementById('start-btn');
-  const video = document.getElementById('main-video');
-  const glowOverlay = document.getElementById('glow-overlay');
-  
-  // Variables de Estado
-  let selectedMode = null;
-  let videoFile = null;
-  let audioCtx = null;
-  let loopTimeout = null;
-  let inJerkofZone = false;
+    // Elementos del DOM
+    const videoContainer = document.getElementById('videoContainer');
+    const video = document.getElementById('mainVideo');
+    const ambilight = document.getElementById('ambilight');
+    const metronomeBar = document.getElementById('metronomeBar');
+    const metronomeDot = document.getElementById('metronomeDot');
+    const pauseOverlay = document.getElementById('pauseOverlay');
+    const pausePhrase = document.getElementById('pausePhrase');
+    const pauseTimer = document.getElementById('pauseTimer');
+    const setupUI = document.getElementById('setupUI');
+    const videoControls = document.getElementById('videoControls');
+    const goldenOverlay = document.getElementById('goldenOverlay');
+    const seekBar = document.getElementById('seekBar');
+    const currentTimeText = document.getElementById('currentTimeText');
+    const durationTimeText = document.getElementById('durationTimeText');
 
-  // Paleta de colores para el marco luminoso
-  const glowColors = {
-    green: 'rgba(0, 255, 80, 0.65)',
-    yellow: 'rgba(255, 200, 0, 0.65)',
-    red: 'rgba(255, 20, 40, 0.75)',
-    purple: 'rgba(180, 0, 255, 0.65)',
-    jerkof: 'rgba(255, 215, 0, 0.9)' // Dorado glorioso
-  };
+    // Iconos SVG minimalistas de línea fina para alternar Play / Pausa
+    const iconPause = '<svg viewBox="0 0 24 24"><line x1="9" y1="5" x2="9" y2="19"/><line x1="15" y1="5" x2="15" y2="19"/></svg>';
+    const iconPlay = '<svg viewBox="0 0 24 24"><polygon points="6 4 20 12 6 20 6 4"/></svg>';
 
-  // --- MOTOR DE AUDIO (Web Audio API) ---
-  function playTone(type, freq, duration, volume = 0.05) {
-    if (!audioCtx) return;
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-    osc.type = type;
-    osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-    
-    // Configuración de volumen sutil
-    gain.gain.setValueAtTime(volume, audioCtx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
-    
-    osc.connect(gain);
-    gain.connect(audioCtx.destination);
-    osc.start();
-    osc.stop(audioCtx.currentTime + duration);
-  }
+    // Estado del Juego
+    let gameActive = false;
+    let currentColor = 'green';
+    let dotPosition = 0;
+    let dotDirection = 1;
+    let animFrame, analysisFrame, pInt;
+    let timeRemaining = 0;
+    let isPausedByGame = false;
+    let nextPauseTime = 0;
+    let inGoldenZone = false;
+    let colorStartTime = Date.now();
+    let isSeeking = false;
+    let controlsTimeout;
 
-  function triggerSound(color) {
-    if (color === 'green') {
-      playTone('sine', 600, 0.5); // Tono fluido normal
-    } else if (color === 'yellow') {
-      playTone('triangle', 450, 0.3); 
-      setTimeout(() => playTone('triangle', 450, 0.3), 150); // Doble tono lento
-    } else if (color === 'red') {
-      playTone('square', 150, 0.6); // Tono grave, paro en seco
-    } else if (color === 'purple') {
-      // 3 tonos rápidos (Rápido, rápido, rápido)
-      playTone('sawtooth', 900, 0.15);
-      setTimeout(() => playTone('sawtooth', 950, 0.15), 100);
-      setTimeout(() => playTone('sawtooth', 1000, 0.15), 200);
-    } else if (color === 'jerkof') {
-      // Acorde majestuoso y glorioso de triunfo
-      ['sine', 'triangle'].forEach(type => {
-        playTone(type, 523.25, 4, 0.08); // C5
-        playTone(type, 659.25, 4, 0.08); // E5
-        playTone(type, 783.99, 4, 0.08); // G5
-      });
+    // Configuraciones
+    let config = {
+        fit: 'cover',
+        mode: 'progressive',
+        targetDuration: null
+    };
+
+    // Paleta de ritmos, degradados suaves y velocidades duplicadas
+    const colors = {
+        red: {
+            hex: '#ff1a1a',
+            speed: 1.2,
+            gTop: 'rgba(255, 26, 26, 0.55)',
+            gMid: 'rgba(255, 26, 26, 0.22)',
+            gSoft: 'rgba(255, 26, 26, 0.06)',
+            glow: 'rgba(255, 26, 26, 0.6)',
+            rate: 1.0
+        },
+        green: {
+            hex: '#00ff88',
+            speed: 3.6,
+            gTop: 'rgba(0, 255, 136, 0.50)',
+            gMid: 'rgba(0, 255, 136, 0.20)',
+            gSoft: 'rgba(0, 255, 136, 0.05)',
+            glow: 'rgba(0, 255, 136, 0.6)',
+            rate: 1.0
+        },
+        yellow: {
+            hex: '#ffcc00',
+            speed: 6.0,
+            gTop: 'rgba(255, 204, 0, 0.55)',
+            gMid: 'rgba(255, 204, 0, 0.22)',
+            gSoft: 'rgba(255, 204, 0, 0.06)',
+            glow: 'rgba(255, 204, 0, 0.65)',
+            rate: 1.1
+        },
+        purple: {
+            hex: '#aa00ff',
+            speed: 9.0,
+            gTop: 'rgba(170, 0, 255, 0.65)',
+            gMid: 'rgba(170, 0, 255, 0.28)',
+            gSoft: 'rgba(170, 0, 255, 0.08)',
+            glow: 'rgba(170, 0, 255, 0.75)',
+            rate: 1.25
+        }
+    };
+
+    // --- MOTOR DE AUDIO SINTETIZADO (WEB AUDIO API) ---
+    let audioCtx = null;
+
+    function initAudio() {
+        if (!audioCtx) {
+            const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+            if (AudioContextClass) {
+                audioCtx = new AudioContextClass();
+            }
+        }
+        if (audioCtx && audioCtx.state === 'suspended') {
+            audioCtx.resume();
+        }
     }
-  }
 
-  // --- INTERFAZ DE SELECCIÓN ---
-  modeBtns.forEach(btn => {
-    btn.addEventListener('click', () => {
-      modeBtns.forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      selectedMode = btn.dataset.mode;
-      checkReady();
+    function playBeatSound(colorKey) {
+        if (!gameActive || isPausedByGame || inGoldenZone || video.paused) return;
+        initAudio();
+        if (!audioCtx) return;
+
+        const now = audioCtx.currentTime;
+
+        if (colorKey === 'red') {
+            // Rojo: Sub-pulso profundo y calmado (160Hz -> 95Hz)
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(160, now);
+            osc.frequency.exponentialRampToValueAtTime(95, now + 0.18);
+
+            gain.gain.setValueAtTime(0.001, now);
+            gain.gain.linearRampToValueAtTime(0.28, now + 0.015);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start(now);
+            osc.stop(now + 0.24);
+        } else if (colorKey === 'green') {
+            // Verde: Toque limpio estilo marimba/madera (~340Hz)
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(340, now);
+            osc.frequency.exponentialRampToValueAtTime(310, now + 0.11);
+
+            gain.gain.setValueAtTime(0.001, now);
+            gain.gain.linearRampToValueAtTime(0.22, now + 0.008);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start(now);
+            osc.stop(now + 0.13);
+        } else if (colorKey === 'yellow') {
+            // Amarillo: Pulso synth enérgico con armónico (~520Hz)
+            const osc1 = audioCtx.createOscillator();
+            const osc2 = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+
+            osc1.type = 'triangle';
+            osc1.frequency.setValueAtTime(520, now);
+            osc1.frequency.exponentialRampToValueAtTime(480, now + 0.09);
+
+            osc2.type = 'sine';
+            osc2.frequency.setValueAtTime(780, now);
+
+            gain.gain.setValueAtTime(0.001, now);
+            gain.gain.linearRampToValueAtTime(0.2, now + 0.006);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+
+            osc1.connect(gain);
+            osc2.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc1.start(now);
+            osc2.start(now);
+            osc1.stop(now + 0.11);
+            osc2.stop(now + 0.11);
+        } else if (colorKey === 'purple') {
+            // Morado: Ping cristalino rápido y brillante (~760Hz con destello)
+            const osc = audioCtx.createOscillator();
+            const shimmer = audioCtx.createOscillator();
+            const filter = audioCtx.createBiquadFilter();
+            const gain = audioCtx.createGain();
+
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(760, now);
+            osc.frequency.exponentialRampToValueAtTime(880, now + 0.065);
+
+            shimmer.type = 'sine';
+            shimmer.frequency.setValueAtTime(1140, now);
+
+            filter.type = 'lowpass';
+            filter.frequency.setValueAtTime(2400, now);
+
+            gain.gain.setValueAtTime(0.001, now);
+            gain.gain.linearRampToValueAtTime(0.18, now + 0.004);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.075);
+
+            osc.connect(filter);
+            shimmer.connect(filter);
+            filter.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start(now);
+            shimmer.start(now);
+            osc.stop(now + 0.085);
+            shimmer.stop(now + 0.085);
+        }
+    }
+
+    function playColorShiftCue(colorKey) {
+        if (!gameActive || isPausedByGame || inGoldenZone || video.paused) return;
+        initAudio();
+        if (!audioCtx) return;
+
+        const freqs = { red: 190, green: 390, yellow: 580, purple: 840 };
+        const now = audioCtx.currentTime;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freqs[colorKey] * 0.85, now);
+        osc.frequency.exponentialRampToValueAtTime(freqs[colorKey], now + 0.12);
+
+        gain.gain.setValueAtTime(0.001, now);
+        gain.gain.linearRampToValueAtTime(0.12, now + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(now);
+        osc.stop(now + 0.18);
+    }
+
+    const phrases = [
+        "Estás a nada de soltar todo...",
+        "Ya casi...",
+        "Aguanta la presión...",
+        "Controla la respiración...",
+        "Siente cómo se acumula...",
+        "No te rindas ahora..."
+    ];
+
+    // Formatear segundos a mm:ss
+    function formatTime(sec) {
+        if (isNaN(sec) || !isFinite(sec)) return "00:00";
+        const m = Math.floor(sec / 60);
+        const s = Math.floor(sec % 60);
+        return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    }
+
+    // --- UI INICIAL ---
+    function toggleFit() {
+        const btn = document.getElementById('btnFit');
+        config.fit = config.fit === 'cover' ? 'contain' : 'cover';
+        btn.innerText = config.fit === 'cover' ? 'Llenar (Vertical)' : 'Ajustar (Horizontal)';
+        btn.classList.toggle('active');
+        video.style.objectFit = config.fit;
+    }
+
+    // --- CARGA DE VIDEO ---
+    document.getElementById('videoUpload').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        initAudio();
+        const url = URL.createObjectURL(file);
+        video.src = url;
+        video.load();
+
+        video.onloadedmetadata = () => {
+            setupUI.style.display = 'none';
+            metronomeBar.style.display = 'block';
+            
+            const dur = document.getElementById('durationSelect').value;
+            config.targetDuration = dur === 'auto' ? video.duration : parseFloat(dur) * 60;
+            config.mode = document.getElementById('modeSelect').value;
+            
+            seekBar.max = video.duration || 100;
+            seekBar.value = 0;
+            durationTimeText.innerText = formatTime(video.duration);
+            currentTimeText.innerText = "00:00";
+
+            startGame();
+            showControls();
+        };
     });
-  });
 
-  videoInput.addEventListener('change', (e) => {
-    if (e.target.files.length > 0) {
-      videoFile = e.target.files[0];
-      let name = videoFile.name;
-      fileLabel.textContent = name.length > 20 ? name.substring(0, 20) + "..." : name;
-      fileLabel.classList.add('loaded');
-      checkReady();
-    }
-  });
+    // --- INTERACCIÓN CON LA BARRA DE PROGRESO ---
+    seekBar.addEventListener('input', () => {
+        isSeeking = true;
+        clearTimeout(controlsTimeout);
+        currentTimeText.innerText = formatTime(seekBar.value);
+    });
 
-  function checkReady() {
-    if (selectedMode && videoFile) {
-      startBtn.classList.add('ready');
-    }
-  }
+    seekBar.addEventListener('change', () => {
+        video.currentTime = parseFloat(seekBar.value);
+        isSeeking = false;
+        if (video.currentTime < nextPauseTime - 300) {
+            scheduleNextPause();
+        }
+        showControls();
+    });
 
-  // --- INICIO DE LA APLICACIÓN ---
-  startBtn.addEventListener('click', () => {
-    if (!selectedMode || !videoFile) return;
-    
-    // Inicializar Audio Context con el clic del usuario (Requisito de navegadores)
-    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    
-    // Cargar video
-    video.src = URL.createObjectURL(videoFile);
-    
-    // Animación de transición
-    setupScreen.style.transform = 'scale(0.9)';
-    setupScreen.style.opacity = '0';
-    
-    setTimeout(() => {
-      setupScreen.style.display = 'none';
-      playerScreen.style.display = 'block';
-      
-      // Reproducir e iniciar la lógica del semáforo
-      video.play();
-      startTrafficLightLoop();
-    }, 600);
-  });
-
-  // --- LÓGICA DEL SEMÁFORO Y ALEATORIEDAD ---
-  function getNextState() {
-    const rand = Math.random();
-    // Probabilidades ajustables según el modo elegido
-    let probs = { green: 0.25, yellow: 0.50, red: 0.75 }; // Neutral por defecto
-    
-    if (selectedMode === 'equilibrado') probs = { green: 0.40, yellow: 0.70, red: 0.85 };
-    else if (selectedMode === 'caotico') probs = { green: 0.15, yellow: 0.35, red: 0.65 };
-    else if (selectedMode === 'disfrute') probs = { green: 0.45, yellow: 0.55, red: 0.65 };
-
-    let color = 'purple';
-    if(rand < probs.green) color = 'green';
-    else if(rand < probs.yellow) color = 'yellow';
-    else if(rand < probs.red) color = 'red';
-
-    // Duraciones dinámicas y aleatorias
-    let min = 3, max = 10;
-    if (color === 'green') { min = 5; max = 15; }
-    if (color === 'red') { min = 2; max = 6; }
-    if (selectedMode === 'caotico') max *= 0.6; // Cambios más rápidos
-
-    let durationSeconds = Math.random() * (max - min) + min;
-    return { color, durationSeconds };
-  }
-
-  function startTrafficLightLoop() {
-    // Si estamos en la zona del final, no iniciar el bucle normal
-    if (inJerkofZone || video.paused || video.ended) return;
-
-    clearTimeout(loopTimeout);
-    
-    const state = getNextState();
-    
-    // Aplicar color al Ambilight y sonido
-    glowOverlay.style.setProperty('--glow-color', glowColors[state.color]);
-    triggerSound(state.color);
-
-    loopTimeout = setTimeout(() => {
-      startTrafficLightLoop();
-    }, state.durationSeconds * 1000);
-  }
-
-  // --- SINCRONIZACIÓN Y EL FINAL "JERKOF" ---
-  // El evento timeupdate se dispara constantemente mientras se reproduce o cuando el usuario adelanta/atrasa
-  video.addEventListener('timeupdate', () => {
-    if (isNaN(video.duration)) return;
-    
-    const timeLeft = video.duration - video.currentTime;
-    
-    // Entrando a la zona Jerkof (últimos 20 segundos)
-    if (timeLeft <= 20.0 && timeLeft > 0) {
-      if (!inJerkofZone) {
-        inJerkofZone = true;
-        clearTimeout(loopTimeout); // Detener el semáforo aleatorio
+    // --- MOTOR PRINCIPAL ---
+    function startGame() {
+        initAudio();
+        gameActive = true;
+        video.play();
+        colorStartTime = Date.now();
         
-        // Aplicar el estado de gloria
-        glowOverlay.style.setProperty('--glow-color', glowColors.jerkof);
-        triggerSound('jerkof');
-      }
-    } 
-    // Si el usuario atrasa el video y sale de la zona de los 20 segundos
-    else if (timeLeft > 20.0) {
-      if (inJerkofZone) {
-        inJerkofZone = false;
-        // Reiniciar el semáforo normal
-        startTrafficLightLoop();
-      }
+        scheduleNextPause();
+        animFrame = requestAnimationFrame(gameLoop);
+        analysisFrame = setInterval(evaluatePacing, 1000); 
     }
-  });
 
-  // Pausar/Reanudar el motor si el usuario pausa el video nativamente
-  video.addEventListener('play', () => {
-    if (!inJerkofZone) startTrafficLightLoop();
-  });
-  
-  video.addEventListener('pause', () => {
-    clearTimeout(loopTimeout);
-  });
-  
-  // Apagar luces al terminar el video
-  video.addEventListener('ended', () => {
-    clearTimeout(loopTimeout);
-    glowOverlay.style.setProperty('--glow-color', 'transparent');
-    inJerkofZone = false;
-  });
+    function gameLoop() {
+        if (!gameActive) return;
 
+        let currentRealTime = video.currentTime;
+        timeRemaining = config.targetDuration - currentRealTime;
+
+        // Actualizar barra de deslizamiento y tiempo si el usuario no la está arrastrando
+        if (!isSeeking && video.duration) {
+            seekBar.value = currentRealTime;
+            currentTimeText.innerText = formatTime(currentRealTime);
+        }
+
+        if (!isPausedByGame) {
+            if (!video.paused) {
+                let speed = colors[currentColor].speed;
+                dotPosition += speed * dotDirection;
+                if (dotPosition >= 100) {
+                    dotPosition = 100;
+                    dotDirection = -1;
+                    playBeatSound(currentColor);
+                }
+                if (dotPosition <= 0) {
+                    dotPosition = 0;
+                    dotDirection = 1;
+                    playBeatSound(currentColor);
+                }
+            }
+            
+            const c = colors[currentColor];
+            metronomeDot.style.left = `${dotPosition}%`;
+            metronomeDot.style.color = c.hex;
+            metronomeDot.style.background = c.hex;
+            metronomeDot.style.boxShadow = `0 0 16px ${c.hex}, 0 0 6px #fff`;
+            
+            // Aurora superior multi-etapa sin cortes ni bordes rectangulares
+            ambilight.style.background = `linear-gradient(180deg, ${c.gTop} 0%, ${c.gMid} 35%, ${c.gSoft} 70%, rgba(0, 0, 0, 0) 100%)`;
+            metronomeBar.style.boxShadow = `0 0 12px ${c.glow}`;
+
+            if (currentRealTime >= nextPauseTime && timeRemaining > 30 && !inGoldenZone) {
+                triggerPause();
+            }
+
+            if (timeRemaining <= 20 && timeRemaining > 0 && !inGoldenZone) {
+                triggerGoldenZone();
+            }
+            
+            if (timeRemaining <= 0 && config.targetDuration > 0) {
+                endGame();
+                return; 
+            }
+        }
+
+        animFrame = requestAnimationFrame(gameLoop);
+    }
+
+    // --- LÓGICA DE MODOS DE SEMÁFORO ---
+    function evaluatePacing() {
+        if (isPausedByGame || inGoldenZone || video.paused) return;
+
+        let timeInColor = (Date.now() - colorStartTime) / 1000;
+        let nextColor = currentColor;
+        let changeThreshold = 4 + Math.random() * 8; 
+
+        if (timeInColor < changeThreshold) return;
+
+        let rand = Math.random();
+
+        if (config.mode === 'random') {
+            if (rand < 0.25) nextColor = 'red';
+            else if (rand < 0.50) nextColor = 'green';
+            else if (rand < 0.75) nextColor = 'yellow';
+            else nextColor = 'purple';
+        } 
+        else if (config.mode === 'progressive') {
+            let totalPlayableTime = config.targetDuration - 20;
+            let timePlayed = config.targetDuration - timeRemaining;
+            let progress = Math.max(0, Math.min(1, timePlayed / totalPlayableTime));
+
+            if (progress < 0.25) {
+                if (rand < 0.55) nextColor = 'green';
+                else if (rand < 0.85) nextColor = 'red';
+                else if (rand < 0.95) nextColor = 'yellow';
+                else nextColor = 'purple';
+            } 
+            else if (progress < 0.50) {
+                if (rand < 0.45) nextColor = 'green';
+                else if (rand < 0.70) nextColor = 'yellow';
+                else if (rand < 0.85) nextColor = 'red';
+                else nextColor = 'purple';
+            } 
+            else if (progress < 0.75) {
+                if (rand < 0.50) nextColor = 'yellow';
+                else if (rand < 0.80) nextColor = 'purple';
+                else if (rand < 0.95) nextColor = 'green';
+                else nextColor = 'red';
+            } 
+            else {
+                if (rand < 0.50) nextColor = 'purple';
+                else if (rand < 0.80) nextColor = 'yellow';
+                else if (rand < 0.90) nextColor = 'green';
+                else nextColor = 'red';
+            }
+        }
+
+        if (currentColor === 'purple' && timeInColor > 8) {
+            nextColor = (Math.random() > 0.5) ? 'red' : 'green'; 
+        }
+
+        changeColor(nextColor);
+    }
+
+    function changeColor(nc) {
+        if (currentColor === nc) return;
+        currentColor = nc;
+        colorStartTime = Date.now();
+        playColorShiftCue(nc);
+    }
+
+    // --- DESCANSOS Y CLÍMAX ---
+    function scheduleNextPause() {
+        if (config.targetDuration < 60) return;
+        let interval = (Math.random() * 180) + 120; 
+        nextPauseTime = video.currentTime + interval;
+    }
+
+    function triggerPause() {
+        isPausedByGame = true;
+        video.pause();
+        pauseOverlay.style.display = 'flex';
+        videoControls.classList.remove('show');
+        metronomeBar.style.display = 'none';
+        ambilight.style.display = 'none';
+        
+        pausePhrase.innerText = phrases[Math.floor(Math.random() * phrases.length)];
+        pausePhrase.style.opacity = 1;
+        
+        let pTime = 30;
+        pauseTimer.innerText = pTime;
+        pauseTimer.className = '';
+
+        pInt = setInterval(() => {
+            pTime--;
+            pauseTimer.innerText = pTime;
+            
+            if (pTime <= 5) {
+                pauseTimer.classList.add('huge-timer');
+                pausePhrase.style.opacity = 0;
+            }
+            
+            if (pTime <= 0) {
+                clearInterval(pInt);
+                isPausedByGame = false;
+                pauseOverlay.style.display = 'none';
+                metronomeBar.style.display = 'block';
+                ambilight.style.display = 'block';
+                video.play();
+                scheduleNextPause();
+                showControls();
+            }
+        }, 1000);
+    }
+
+    function triggerGoldenZone() {
+        inGoldenZone = true;
+        metronomeBar.style.display = 'none'; 
+        goldenOverlay.style.display = 'block';
+        ambilight.style.background = 'none';
+    }
+
+    function endGame() {
+        gameActive = false;
+        video.pause();
+        goldenOverlay.style.display = 'none';
+        ambilight.style.background = 'none';
+        document.getElementById('playPauseBtn').innerHTML = iconPlay;
+        showControls();
+    }
+
+    // --- CONTROLES DE VIDEO Y UI INTERACTIVA ---
+    videoContainer.addEventListener('click', () => {
+        if (gameActive && !isPausedByGame) {
+            showControls();
+        }
+    });
+
+    function showControls() {
+        videoControls.classList.add('show');
+        clearTimeout(controlsTimeout);
+        controlsTimeout = setTimeout(() => {
+            if (!video.paused && !isSeeking) {
+                videoControls.classList.remove('show');
+            }
+        }, 3000);
+    }
+
+    function togglePlay() {
+        if (isPausedByGame) return;
+        initAudio();
+        const btn = document.getElementById('playPauseBtn');
+        if (video.paused) {
+            video.play();
+            btn.innerHTML = iconPause;
+            showControls();
+        } else {
+            video.pause();
+            btn.innerHTML = iconPlay;
+            clearTimeout(controlsTimeout); 
+            videoControls.classList.add('show');
+        }
+    }
+
+    function skip(seconds) {
+        if (isPausedByGame) return;
+        initAudio();
+        video.currentTime = Math.max(0, Math.min(video.duration || 0, video.currentTime + seconds));
+        if (video.currentTime < nextPauseTime - 300) {
+            scheduleNextPause();
+        }
+        showControls();
+    }
+
+    // --- RESET TOTAL ---
+    function returnToMenu() {
+        gameActive = false;
+        cancelAnimationFrame(animFrame);
+        clearInterval(analysisFrame);
+        clearInterval(pInt);
+        clearTimeout(controlsTimeout);
+        
+        video.pause();
+        video.removeAttribute('src');
+        document.getElementById('videoUpload').value = '';
+        
+        goldenOverlay.style.display = 'none';
+        pauseOverlay.style.display = 'none';
+        videoControls.classList.remove('show');
+        metronomeBar.style.display = 'none';
+        ambilight.style.display = 'block';
+        ambilight.style.background = 'none';
+        setupUI.style.display = 'flex';
+        
+        timeRemaining = 0;
+        isPausedByGame = false;
+        inGoldenZone = false;
+        currentColor = 'green';
+        document.getElementById('playPauseBtn').innerHTML = iconPause;
+    }
 </script>
 </body>
 </html>
