@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>JERKOF - Overlay & Smart Pacing Studio</title>
+    <title>Jerkof - Smart Pacing</title>
     <style>
         :root {
             --red: #ff1a1a;
@@ -32,104 +32,49 @@
             overflow: hidden;
         }
 
-        /* Escenario Principal (Captura toques para mostrar/ocultar controles) */
-        #videoContainer {
+        /* Escenario limpio: captura toques para mostrar controles sin estorbar */
+        #stageContainer {
             position: absolute;
-            top: 0;
-            left: 0;
+            inset: 0;
             width: 100%;
             height: 100%;
+            background-color: #000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            padding-top: 24px;
             z-index: 1;
             cursor: pointer;
-            background: #000;
         }
 
-        #mainVideo {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
+        /* Lienzo visible y exportable recortado exactamente a 1920x180 px (Proporción panorámica alargada) */
+        #exportCanvas {
+            width: 92%;
+            max-width: 960px;
+            aspect-ratio: 1920 / 180;
+            display: block;
+            border-radius: 14px;
+            background: transparent;
             pointer-events: none;
-            display: none;
+            transition: box-shadow 0.3s ease;
         }
 
-        /* Lienzo Visible en Vivo (Renderiza exactamente lo que se ve y lo que se graba) */
-        #stageCanvas {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            z-index: 2;
+        /* Patrón de ajedrez muy tenue solo en vista previa si el fondo es transparente (no se graba en el canvas) */
+        #exportCanvas.preview-checker {
+            background-image:
+                linear-gradient(45deg, rgba(255,255,255,0.035) 25%, transparent 25%),
+                linear-gradient(-45deg, rgba(255,255,255,0.035) 25%, transparent 25%),
+                linear-gradient(45deg, transparent 75%, rgba(255,255,255,0.035) 75%),
+                linear-gradient(-45deg, transparent 75%, rgba(255,255,255,0.035) 75%);
+            background-size: 16px 16px;
+            background-position: 0 0, 0 8px, 8px -8px, -8px 0;
         }
 
-        /* Efecto Ambilight Superior DOM (Sincronizado con el Canvas) */
-        #ambilight {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 120px;
-            pointer-events: none;
-            z-index: 3;
-            transition: background 0.4s ease, opacity 0.4s ease;
-        }
-
-        /* Metrónomo Superior DOM (Único elemento visible en pantalla durante el juego) */
-        #metronomeBar {
-            position: absolute;
-            top: 15px;
-            left: 10%;
-            width: 80%;
-            height: 4px;
-            background: rgba(255, 255, 255, 0.16);
-            border-radius: 4px;
-            z-index: 5;
-            display: none;
-            box-shadow: 0 0 10px rgba(0,0,0,0.5);
-            pointer-events: none;
-        }
-
-        #metronomeDot {
-            width: 16px;
-            height: 16px;
-            border-radius: 50%;
-            background: #fff;
-            position: absolute;
-            top: -6px;
-            left: 0%;
-            margin-left: -8px;
-            box-shadow: 0 0 15px currentColor;
-            pointer-events: none;
-        }
-
-        /* Pantalla de Gloria / Clímax (Últimos 20 Segundos - Marco limpio sin textos) */
-        #goldenOverlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            box-shadow: inset 0 0 150px 50px rgba(255, 215, 0, 0.65);
-            pointer-events: none;
-            z-index: 4;
-            display: none;
-            animation: pulseGold 1.4s infinite alternate;
-        }
-
-        @keyframes pulseGold {
-            0% { box-shadow: inset 0 0 90px 25px rgba(255, 215, 0, 0.4); }
-            100% { box-shadow: inset 0 0 190px 65px rgba(255, 215, 0, 0.85); }
-        }
-
-        /* Interfaz de Configuración Inicial (Glassmorphism) */
+        /* Interfaz de Configuración Inicial (Glassmorphism oscuro con acento rojo) */
         #setupUI {
             position: absolute;
-            top: 0;
-            left: 0;
+            inset: 0;
             width: 100%;
             height: 100%;
             display: flex;
@@ -137,52 +82,57 @@
             justify-content: center;
             align-items: center;
             z-index: 30;
-            background: radial-gradient(circle, rgba(40,0,10,0.92) 0%, #000 100%);
+            background: radial-gradient(circle, rgba(40, 0, 10, 0.92) 0%, #000 100%);
             backdrop-filter: blur(15px);
             -webkit-backdrop-filter: blur(15px);
-            padding: 18px;
+            padding: 20px;
         }
 
         .glass-panel {
             background: var(--glass-bg);
             border: 1px solid var(--glass-border);
             border-radius: 24px;
-            padding: 26px 20px;
+            padding: 30px 22px;
             width: 100%;
-            max-width: 430px;
-            box-shadow: 0 15px 35px rgba(255, 26, 26, 0.15), inset 0 0 15px rgba(255, 26, 26, 0.1);
+            max-width: 420px;
+            box-shadow: 0 15px 35px rgba(255, 26, 26, 0.16), inset 0 0 15px rgba(255, 26, 26, 0.1);
             display: flex;
             flex-direction: column;
-            gap: 13px;
+            gap: 15px;
             max-height: 92vh;
             overflow-y: auto;
         }
 
-        h1 {
+        .title-wrap {
             text-align: center;
-            color: var(--red);
-            font-size: 2.1rem;
-            margin-bottom: 4px;
-            text-shadow: 0 0 20px rgba(255,26,26,0.5);
-            font-weight: 800;
-            letter-spacing: 2px;
-            text-transform: uppercase;
+            margin-bottom: 6px;
         }
 
-        .subtitle-tag {
-            text-align: center;
-            font-size: 0.78rem;
-            color: rgba(255, 255, 255, 0.6);
-            margin-top: -8px;
-            margin-bottom: 6px;
+        h1 {
+            color: var(--red);
+            font-size: 2.2rem;
+            text-shadow: 0 0 20px rgba(255, 26, 26, 0.55);
+            font-weight: 800;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            line-height: 1.1;
+        }
+
+        .subtitle {
+            font-size: 0.72rem;
+            letter-spacing: 3.5px;
+            color: rgba(255, 255, 255, 0.55);
+            margin-top: 6px;
+            font-weight: 600;
+            text-transform: uppercase;
         }
 
         .setting-group {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 8px 0;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
             flex-wrap: wrap;
             gap: 10px;
         }
@@ -192,50 +142,44 @@
         }
 
         label {
-            font-size: 0.9rem;
+            font-size: 0.92rem;
             color: #ddd;
             flex: 1;
-            min-width: 120px;
-        }
-
-        .toggle-btn, .select-btn {
-            background: rgba(255,255,255,0.06);
-            border: 1px solid var(--red);
-            color: #fff;
-            padding: 8px 12px;
-            border-radius: 12px;
-            font-size: 0.84rem;
-            cursor: pointer;
-            transition: all 0.25s ease;
-            outline: none;
+            min-width: 130px;
         }
 
         .select-btn {
-            flex: 1.1;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid var(--red);
+            color: #fff;
+            padding: 9px 12px;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            outline: none;
+            flex: 1.15;
             text-align: center;
         }
 
+        .select-btn:focus {
+            box-shadow: 0 0 12px rgba(255, 26, 26, 0.45);
+        }
+
         .select-btn option {
-            background: #140005;
+            background: #120004;
             color: #fff;
         }
 
-        .toggle-btn.active {
-            background: var(--red);
-            box-shadow: 0 0 15px rgba(255,26,26,0.6);
-            color: #000;
-            font-weight: bold;
-        }
-
-        .primary-start-btn {
+        .primary-btn {
             background: linear-gradient(45deg, #ff0044, #aa00ff);
             border: none;
             color: white;
-            padding: 15px;
+            padding: 15px 18px;
             border-radius: 16px;
             font-size: 1.02rem;
-            font-weight: 800;
-            margin-top: 6px;
+            font-weight: 700;
+            margin-top: 8px;
             cursor: pointer;
             box-shadow: 0 10px 22px rgba(255, 0, 68, 0.4);
             transition: transform 0.2s, box-shadow 0.2s;
@@ -245,194 +189,128 @@
             gap: 10px;
         }
 
-        .primary-start-btn:active {
-            transform: scale(0.97);
+        .primary-btn:hover {
+            box-shadow: 0 12px 26px rgba(255, 0, 68, 0.55);
         }
 
-        .record-start-btn {
-            background: linear-gradient(45deg, #d90429, #ff1a1a);
-            border: 1px solid rgba(255, 255, 255, 0.25);
-            color: white;
-            padding: 14px;
-            border-radius: 16px;
-            font-size: 0.96rem;
-            font-weight: 800;
-            cursor: pointer;
-            box-shadow: 0 8px 20px rgba(255, 26, 26, 0.35);
-            transition: transform 0.2s, box-shadow 0.2s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
+        .primary-btn:active {
+            transform: scale(0.96);
         }
 
-        .record-start-btn:active {
-            transform: scale(0.97);
-        }
-
-        .secondary-upload-btn {
-            background: rgba(255, 255, 255, 0.06);
-            border: 1px solid rgba(255, 255, 255, 0.22);
-            color: #eee;
-            padding: 12px;
+        .secondary-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            color: rgba(255, 255, 255, 0.82);
+            padding: 12px 16px;
             border-radius: 14px;
-            font-size: 0.88rem;
+            font-size: 0.9rem;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all 0.2s ease;
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 8px;
         }
 
-        .secondary-upload-btn:hover {
-            border-color: var(--red);
-            background: rgba(255, 26, 26, 0.16);
+        .secondary-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.35);
+            color: #fff;
         }
 
-        .primary-start-btn svg, .record-start-btn svg, .secondary-upload-btn svg {
-            width: 19px;
-            height: 19px;
+        .secondary-btn:active {
+            transform: scale(0.97);
+        }
+
+        .btn-icon {
+            width: 18px;
+            height: 18px;
             stroke: currentColor;
             fill: none;
-            stroke-width: 2;
+            stroke-width: 1.8;
             stroke-linecap: round;
             stroke-linejoin: round;
+            flex-shrink: 0;
         }
 
-        input[type="file"] {
-            display: none;
-        }
-
-        /* Controles en Juego (Auto-ocultables, aparecen solo al tocar la pantalla) */
-        #videoControls {
+        /* Cápsula de Controles Minimalistas Auto-ocultables */
+        #controlDock {
             position: absolute;
-            bottom: 24px;
+            bottom: 28px;
             left: 50%;
             transform: translateX(-50%);
             display: flex;
-            pointer-events: none;
             flex-direction: column;
-            gap: 12px;
+            gap: 14px;
             z-index: 15;
-            background: linear-gradient(135deg, rgba(40, 0, 15, 0.68), rgba(18, 0, 5, 0.52));
-            padding: 16px 20px;
-            border-radius: 26px;
-            backdrop-filter: blur(25px) saturate(150%);
-            -webkit-backdrop-filter: blur(25px) saturate(150%);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            box-shadow: 0 15px 35px rgba(0,0,0,0.7), inset 0 0 20px rgba(255, 26, 26, 0.18);
-            width: 92%;
-            max-width: 490px;
+            background: linear-gradient(135deg, rgba(40, 0, 15, 0.65), rgba(20, 0, 5, 0.45));
+            padding: 18px 22px;
+            border-radius: 28px;
+            backdrop-filter: blur(24px) saturate(150%);
+            -webkit-backdrop-filter: blur(24px) saturate(150%);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.7), inset 0 0 18px rgba(255, 26, 26, 0.15);
+            width: 90%;
+            max-width: 440px;
             opacity: 0;
+            pointer-events: none;
             transition: opacity 0.35s ease;
         }
 
-        #videoControls.show {
+        #controlDock.show {
             opacity: 1;
             pointer-events: auto;
-        }
-
-        /* Píldoras rápidas de color y Gloria 20s */
-        .quick-color-row {
-            display: grid;
-            grid-template-columns: repeat(5, 1fr);
-            gap: 6px;
-            width: 100%;
-        }
-
-        .q-pill {
-            background: rgba(255, 255, 255, 0.06);
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            color: #ddd;
-            padding: 6px 4px;
-            border-radius: 10px;
-            font-size: 0.7rem;
-            font-weight: 700;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 5px;
-            transition: all 0.2s ease;
-        }
-
-        .q-pill span.c-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-        }
-
-        .q-pill.active {
-            border-color: #fff;
-            background: rgba(255, 255, 255, 0.18);
-            color: #fff;
-            transform: translateY(-1px);
         }
 
         .progress-container {
             width: 100%;
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
             color: #eee;
             font-size: 0.82rem;
-            font-family: monospace;
-            text-shadow: 0 0 5px rgba(0,0,0,0.8);
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
         }
 
-        input[type=range] {
-            -webkit-appearance: none;
-            appearance: none;
-            width: 100%;
-            background: transparent;
-        }
-
-        input[type=range]::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            height: 16px;
-            width: 16px;
-            border-radius: 50%;
-            background: #fff;
-            cursor: pointer;
-            margin-top: -6px;
-            box-shadow: 0 0 15px var(--red), 0 0 5px #fff;
-            transition: transform 0.2s ease;
-        }
-
-        input[type=range]::-webkit-slider-thumb:active {
-            transform: scale(1.3);
-        }
-
-        input[type=range]::-webkit-slider-runnable-track {
-            width: 100%;
+        .progress-track {
+            flex: 1;
             height: 4px;
-            cursor: pointer;
-            background: rgba(255, 255, 255, 0.25);
-            border-radius: 2px;
+            background: rgba(255, 255, 255, 0.22);
+            border-radius: 999px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .progress-fill {
+            height: 100%;
+            width: 0%;
+            background: var(--red);
+            box-shadow: 0 0 10px var(--red);
+            border-radius: 999px;
+            transition: width 0.15s linear, background 0.3s ease;
         }
 
         .control-row {
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 10px;
+            gap: 14px;
             width: 100%;
         }
 
         .ctrl-btn {
-            background: rgba(255,255,255,0.08);
-            border: 1px solid rgba(255,255,255,0.2);
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.2);
             color: white;
             cursor: pointer;
-            padding: 11px 14px;
-            border-radius: 15px;
+            padding: 12px 15px;
+            border-radius: 16px;
             transition: all 0.25s ease;
             display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.25);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.25);
         }
 
         .ctrl-btn svg {
@@ -447,158 +325,159 @@
         }
 
         .ctrl-btn:hover, .ctrl-btn:active {
-            background: rgba(255, 26, 26, 0.3);
+            background: rgba(255, 26, 26, 0.28);
             border-color: rgba(255, 26, 26, 0.65);
             transform: scale(1.06);
         }
 
-        .ctrl-btn.rec-action-btn {
-            flex: 1;
-            gap: 8px;
-            font-size: 0.84rem;
-            font-weight: 700;
-            background: linear-gradient(45deg, rgba(255, 0, 68, 0.35), rgba(170, 0, 255, 0.35));
-            border-color: rgba(255, 26, 26, 0.55);
+        .ctrl-btn.gold-btn:hover, .ctrl-btn.gold-btn:active {
+            background: rgba(255, 215, 0, 0.24);
+            border-color: rgba(255, 215, 0, 0.75);
+            color: var(--gold);
         }
 
-        .ctrl-btn.rec-action-btn.recording {
-            background: rgba(255, 26, 26, 0.35);
+        .ctrl-btn.rec-stop-btn {
+            background: rgba(255, 26, 26, 0.24);
             border-color: var(--red);
             color: #fff;
-            box-shadow: 0 0 20px rgba(255, 26, 26, 0.75);
-            animation: recPulse 1.2s infinite alternate;
+            animation: recPulse 1.3s infinite alternate;
         }
 
         @keyframes recPulse {
-            0% { box-shadow: 0 0 10px rgba(255, 26, 26, 0.45); }
-            100% { box-shadow: 0 0 24px rgba(255, 26, 26, 0.95); }
+            0% { box-shadow: 0 0 8px rgba(255, 26, 26, 0.45); }
+            100% { box-shadow: 0 0 22px rgba(255, 26, 26, 0.95); }
         }
 
-        /* Modal Elegante de Exportación y Descarga Garantizada */
+        /* Modal de Descarga Infalible */
         #exportModal {
             position: absolute;
-            top: 0;
-            left: 0;
+            inset: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.85);
+            background: rgba(0, 0, 0, 0.86);
             backdrop-filter: blur(16px);
             -webkit-backdrop-filter: blur(16px);
             z-index: 40;
             display: none;
-            flex-direction: column;
             justify-content: center;
             align-items: center;
             padding: 20px;
         }
 
-        #exportModal.visible {
+        #exportModal.show {
             display: flex;
         }
 
         .export-card {
-            background: rgba(20, 4, 10, 0.92);
-            border: 1px solid rgba(0, 255, 136, 0.45);
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
             border-radius: 24px;
             padding: 26px 22px;
             width: 100%;
-            max-width: 400px;
+            max-width: 480px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8), 0 0 30px rgba(255, 26, 26, 0.2);
             display: flex;
             flex-direction: column;
-            align-items: center;
-            text-align: center;
-            gap: 14px;
-            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.85), 0 0 30px rgba(0, 255, 136, 0.15);
+            gap: 16px;
         }
 
-        .export-icon-circle {
-            width: 54px;
-            height: 54px;
-            border-radius: 50%;
-            background: rgba(0, 255, 136, 0.14);
-            border: 1px solid var(--green);
+        .export-header {
             display: flex;
+            justify-content: space-between;
             align-items: center;
-            justify-content: center;
-            color: var(--green);
-        }
-
-        .export-icon-circle svg {
-            width: 26px;
-            height: 26px;
-            stroke: currentColor;
-            fill: none;
-            stroke-width: 2;
-            stroke-linecap: round;
-            stroke-linejoin: round;
         }
 
         .export-title {
-            font-size: 1.25rem;
-            font-weight: 800;
+            font-size: 1.15rem;
+            font-weight: 700;
             color: #fff;
         }
 
         .export-meta {
-            font-size: 0.85rem;
-            color: rgba(255, 255, 255, 0.72);
-            line-height: 1.4;
+            font-size: 0.82rem;
+            color: rgba(255, 255, 255, 0.65);
+            margin-top: 3px;
         }
 
-        .export-preview-video {
-            width: 100%;
-            max-height: 180px;
-            border-radius: 14px;
-            background: #000;
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            object-fit: contain;
-        }
-
-        .export-primary-dl {
-            width: 100%;
-            background: var(--green);
-            color: #03140b;
-            border: none;
-            padding: 15px;
-            border-radius: 15px;
-            font-size: 1rem;
-            font-weight: 800;
+        .close-modal-btn {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            color: #fff;
+            width: 36px;
+            height: 36px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             cursor: pointer;
+        }
+
+        .close-modal-btn svg {
+            width: 18px;
+            height: 18px;
+            stroke: currentColor;
+            fill: none;
+            stroke-width: 1.8;
+        }
+
+        .preview-box {
+            width: 100%;
+            background: #08080a;
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            border-radius: 14px;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        #previewVideo {
+            width: 100%;
+            aspect-ratio: 1920 / 180;
+            border-radius: 8px;
+            background: #000;
+            display: block;
+        }
+
+        .export-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .download-main-btn {
+            background: linear-gradient(45deg, #ff0044, #aa00ff);
+            border: none;
+            color: #fff;
+            padding: 15px 18px;
+            border-radius: 16px;
+            font-size: 0.98rem;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 10px 22px rgba(255, 0, 68, 0.38);
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 10px;
-            box-shadow: 0 8px 25px rgba(0, 255, 136, 0.4);
             text-decoration: none;
-            transition: transform 0.18s ease;
+            transition: transform 0.2s;
         }
 
-        .export-primary-dl:active {
+        .download-main-btn:active {
             transform: scale(0.97);
-        }
-
-        .export-primary-dl svg, .export-alt-btn svg {
-            width: 19px;
-            height: 19px;
-            stroke: currentColor;
-            fill: none;
-            stroke-width: 2.2;
-            stroke-linecap: round;
-            stroke-linejoin: round;
         }
 
         .export-secondary-row {
             display: flex;
             gap: 10px;
-            width: 100%;
         }
 
-        .export-alt-btn {
+        .direct-link-btn {
             flex: 1;
-            background: rgba(255, 255, 255, 0.08);
-            border: 1px solid rgba(255, 255, 255, 0.22);
-            color: #fff;
-            padding: 11px 12px;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #eee;
+            padding: 11px 14px;
             border-radius: 13px;
             font-size: 0.84rem;
             font-weight: 600;
@@ -606,933 +485,657 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 6px;
+            gap: 8px;
             text-decoration: none;
         }
 
-        .export-alt-btn:hover {
-            background: rgba(255, 255, 255, 0.16);
+        .direct-link-btn:hover {
+            background: rgba(255, 255, 255, 0.12);
         }
 
-        .export-status-note {
-            font-size: 0.76rem;
+        .status-toast {
+            font-size: 0.8rem;
             color: var(--green);
-            min-height: 16px;
-        }
-
-        /* Pantalla de Pausa / Edging */
-        #pauseOverlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.94);
-            z-index: 20;
-            display: none;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
             text-align: center;
-            padding: 20px;
-        }
-
-        #pausePhrase {
-            font-size: 2rem;
-            color: var(--red);
-            margin-bottom: 30px;
-            font-weight: 300;
-            text-shadow: 0 0 15px rgba(255,26,26,0.4);
-            opacity: 0;
-            transition: opacity 0.8s ease;
-        }
-
-        #pauseTimer {
-            font-size: 4rem;
-            font-weight: bold;
-            color: #fff;
-            transition: font-size 0.4s ease, color 0.4s ease;
-        }
-
-        .huge-timer {
-            font-size: 9.5rem !important;
-            color: var(--red) !important;
-            text-shadow: 0 0 40px rgba(255,26,26,0.8);
+            min-height: 18px;
         }
     </style>
 </head>
 <body>
 
-    <!-- Menú de Configuración Inicial -->
+    <!-- Pantalla de Configuración Inicial -->
     <div id="setupUI">
         <div class="glass-panel">
-            <h1>Jerkof</h1>
-            <p class="subtitle-tag">Overlay & Smart Pacing Studio</p>
-            
-            <div class="setting-group">
-                <label>Ajuste / Formato</label>
-                <button type="button" class="toggle-btn active" id="btnFit" onclick="toggleFit()">Vertical (9:16)</button>
+            <div class="title-wrap">
+                <h1>JERKOF</h1>
+                <div class="subtitle">OVERLAY METRONOME</div>
             </div>
-            
+
             <div class="setting-group">
-                <label>Modo de Semáforo</label>
+                <label for="modeSelect">Modo de Semáforo</label>
                 <select class="select-btn" id="modeSelect">
                     <option value="progressive">Niveles Progresivos</option>
                     <option value="random">Totalmente Aleatorio</option>
                 </select>
             </div>
-            
+
             <div class="setting-group">
-                <label>Duración (Hasta 1 Hora)</label>
+                <label for="durationSelect">Duración de Sesión / Grabación</label>
                 <select class="select-btn" id="durationSelect">
                     <option value="1">1 Minuto (Prueba + Gloria 20s)</option>
                     <option value="5">5 Minutos</option>
-                    <option value="15" selected>15 Minutos</option>
+                    <option value="15">15 Minutos</option>
                     <option value="30">30 Minutos</option>
                     <option value="45">45 Minutos</option>
                     <option value="60">1 Hora (60 Minutos)</option>
-                    <option value="auto">Adaptar al Video</option>
                 </select>
             </div>
 
             <div class="setting-group">
-                <label>Fondo Descargable</label>
-                <select class="select-btn" id="bgModeSelect">
-                    <option value="black">Negro Puro (Modo Pantalla Canva)</option>
-                    <option value="chroma">Verde Chroma Key (#00FF00)</option>
-                    <option value="strip">Solo Franja Superior (1920x240)</option>
-                    <option value="video">Video + Semáforo (Si subes video)</option>
+                <label for="bgSelect">Fondo de Exportación</label>
+                <select class="select-btn" id="bgSelect">
+                    <option value="transparent">Transparente (Alpha WebM)</option>
+                    <option value="black">Negro Puro (Fusión Screen)</option>
+                    <option value="green">Verde Chroma Key (#00FF00)</option>
                 </select>
             </div>
 
-            <div class="setting-group">
-                <label>Pausas de Edging</label>
-                <button type="button" class="toggle-btn active" id="btnEdgingToggle" onclick="toggleEdgingPause()">Activadas</button>
-            </div>
-            
-            <!-- Opción 1: Grabar y Descargar Overlay limpio desde el segundo 0 -->
-            <button type="button" class="record-start-btn" onclick="startOverlayAndRecord()">
-                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></svg>
-                <span>Grabar y Descargar Sesión</span>
+            <button type="button" class="primary-btn" id="btnStartRecord">
+                <svg class="btn-icon" viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="8"></circle>
+                    <circle cx="12" cy="12" r="3"></circle>
+                </svg>
+                <span>Iniciar y Grabar Metrónomo</span>
             </button>
 
-            <!-- Opción 2: Iniciar solo el Overlay en vivo sin grabar aún -->
-            <button type="button" class="primary-start-btn" onclick="startOverlayStandalone(false)">
-                <svg viewBox="0 0 24 24"><polygon points="6 4 20 12 6 20 6 4"/></svg>
-                <span>Iniciar Overlay (Sin Video)</span>
-            </button>
-
-            <!-- Opción 3: Seleccionar un video del dispositivo -->
-            <input type="file" id="videoUpload" accept="video/*">
-            <button type="button" class="secondary-upload-btn" onclick="document.getElementById('videoUpload').click()">
-                <svg viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"/><polygon points="10 9 15 12 10 15 10 9"/></svg>
-                <span>Seleccionar Video y Empezar</span>
+            <button type="button" class="secondary-btn" id="btnStartPreview">
+                <svg class="btn-icon" viewBox="0 0 24 24">
+                    <polygon points="6 4 20 12 6 20 6 4"></polygon>
+                </svg>
+                <span>Solo Previsualizar (Sin Grabar)</span>
             </button>
         </div>
     </div>
 
-    <!-- Contenedor Principal -->
-    <div id="videoContainer">
-        <video id="mainVideo" playsinline webkit-playsinline></video>
-        <canvas id="stageCanvas"></canvas>
-    </div>
-    
-    <!-- Elementos Visuales Superiores Limpios (Solo Metrónomo y Gloria) -->
-    <div id="ambilight"></div>
-    <div id="goldenOverlay"></div>
-
-    <div id="metronomeBar">
-        <div id="metronomeDot"></div>
+    <!-- Escenario Limpio con el Metrónomo Panorámico Recortado (1920x180) -->
+    <div id="stageContainer">
+        <canvas id="exportCanvas" width="1920" height="180"></canvas>
     </div>
 
-    <!-- Controles en Juego (Auto-ocultables, aparecen únicamente al tocar la pantalla) -->
-    <div id="videoControls">
-        <div class="quick-color-row">
-            <button type="button" class="q-pill" id="qpill-red" onclick="forceColor('red')">
-                <span class="c-dot" style="background:#ff1a1a"></span>Rojo
-            </button>
-            <button type="button" class="q-pill active" id="qpill-green" onclick="forceColor('green')">
-                <span class="c-dot" style="background:#00ff88"></span>Verde
-            </button>
-            <button type="button" class="q-pill" id="qpill-yellow" onclick="forceColor('yellow')">
-                <span class="c-dot" style="background:#ffcc00"></span>Amarillo
-            </button>
-            <button type="button" class="q-pill" id="qpill-purple" onclick="forceColor('purple')">
-                <span class="c-dot" style="background:#aa00ff"></span>Morado
-            </button>
-            <button type="button" class="q-pill" id="qpill-gold" onclick="jumpToGoldenZone()" title="Ir a los últimos 20s (Momento de Gloria)">
-                <span class="c-dot" style="background:#ffd700; box-shadow:0 0 6px #ffd700"></span>Gloria
-            </button>
-        </div>
-
+    <!-- Cápsula de Controles Minimalistas Auto-ocultables -->
+    <div id="controlDock">
         <div class="progress-container">
-            <span id="currentTimeText">00:00</span>
-            <input type="range" id="seekBar" min="0" max="900" value="0" step="0.1">
-            <span id="durationTimeText">15:00</span>
+            <span id="elapsedText">00:00</span>
+            <div class="progress-track">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <span id="totalText">00:00</span>
         </div>
 
         <div class="control-row">
-            <button type="button" class="ctrl-btn" onclick="returnToMenu()" title="Volver al Menú">
-                <svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+            <button type="button" class="ctrl-btn" id="btnBackMenu" title="Detener y Volver al Menú">
+                <svg viewBox="0 0 24 24">
+                    <rect x="6" y="6" width="12" height="12" rx="2"></rect>
+                </svg>
             </button>
-            <button type="button" class="ctrl-btn" onclick="skip(-10)" title="Retroceder 10s">
-                <svg viewBox="0 0 24 24"><polygon points="11 19 2 12 11 5 11 19"/><polygon points="22 19 13 12 22 5 22 19"/></svg>
+
+            <button type="button" class="ctrl-btn" id="btnPlayPause" title="Pausar / Reanudar">
+                <svg viewBox="0 0 24 24">
+                    <line x1="9" y1="5" x2="9" y2="19"></line>
+                    <line x1="15" y1="5" x2="15" y2="19"></line>
+                </svg>
             </button>
-            <button type="button" class="ctrl-btn" id="playPauseBtn" onclick="togglePlay()" title="Pausar / Reanudar">
-                <svg viewBox="0 0 24 24"><line x1="9" y1="5" x2="9" y2="19"/><line x1="15" y1="5" x2="15" y2="19"/></svg>
+
+            <button type="button" class="ctrl-btn gold-btn" id="btnJumpGlory" title="Saltar al Momento de Gloria (Últimos 20s)">
+                <svg viewBox="0 0 24 24">
+                    <polygon points="12 2 14.8 8.8 22 9.4 16.5 14.1 18.2 21.2 12 17.4 5.8 21.2 7.5 14.1 2 9.4 9.2 8.8 12 2"></polygon>
+                </svg>
             </button>
-            <button type="button" class="ctrl-btn" onclick="skip(10)" title="Adelantar 10s">
-                <svg viewBox="0 0 24 24"><polygon points="13 19 22 12 13 5 13 19"/><polygon points="2 19 11 12 2 5 2 19"/></svg>
-            </button>
-            <button type="button" class="ctrl-btn rec-action-btn" id="recBtn" onclick="toggleRecording()" title="Grabar y Descargar Video">
-                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></svg>
-                <span id="recBtnLabel">Grabar</span>
+
+            <button type="button" class="ctrl-btn rec-stop-btn" id="btnStopDownload" title="Detener Grabación y Descargar">
+                <svg viewBox="0 0 24 24">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="7 10 12 15 17 10"></polyline>
+                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>
             </button>
         </div>
     </div>
 
-    <!-- Modal de Descarga Garantizada (Multi-método para cualquier navegador / iframe / móvil) -->
+    <!-- Modal de Descarga Infalible -->
     <div id="exportModal">
         <div class="export-card">
-            <div class="export-icon-circle">
-                <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            </div>
-            <div class="export-title" id="exportTitle">Video Listo para Descargar</div>
-            <div class="export-meta" id="exportMeta">Preparando archivo...</div>
-            <video id="exportPreviewVideo" class="export-preview-video" controls playsinline loop></video>
-
-            <button type="button" class="export-primary-dl" id="primarySaveBtn" onclick="triggerGuaranteedDownload()">
-                <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                <span>Descargar Video Ahora</span>
-            </button>
-
-            <div class="export-secondary-row">
-                <a id="fallbackOpenLink" class="export-alt-btn" href="#" target="_blank" rel="noopener">
-                    <svg viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-                    <span>Abrir / Compartir</span>
-                </a>
-                <button type="button" class="export-alt-btn" onclick="closeExportModal()">
-                    <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                    <span>Cerrar</span>
+            <div class="export-header">
+                <div>
+                    <div class="export-title">Metrónomo Listo (1920x180)</div>
+                    <div class="export-meta" id="exportMetaText">Preparando archivo...</div>
+                </div>
+                <button type="button" class="close-modal-btn" id="btnCloseModal" title="Cerrar">
+                    <svg viewBox="0 0 24 24">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
                 </button>
             </div>
 
-            <div class="export-status-note" id="exportStatusNote"></div>
+            <div class="preview-box">
+                <video id="previewVideo" controls loop playsinline></video>
+            </div>
+
+            <div class="export-actions">
+                <button type="button" class="download-main-btn" id="btnDownloadMain">
+                    <svg class="btn-icon" viewBox="0 0 24 24">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="7 10 12 15 17 10"></polyline>
+                        <line x1="12" y1="15" x2="12" y2="3"></line>
+                    </svg>
+                    <span>Descargar Metrónomo (1920x180)</span>
+                </button>
+
+                <div class="export-secondary-row">
+                    <button type="button" class="direct-link-btn" id="btnShareFile" style="display: none;">
+                        <svg class="btn-icon" viewBox="0 0 24 24">
+                            <circle cx="18" cy="5" r="3"></circle>
+                            <circle cx="6" cy="12" r="3"></circle>
+                            <circle cx="18" cy="19" r="3"></circle>
+                            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+                            <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+                        </svg>
+                        <span>Compartir / Guardar en Archivos</span>
+                    </button>
+
+                    <a class="direct-link-btn" id="directAnchorLink" href="#" download="jerkof-metronomo-1920x180.webm">
+                        <svg class="btn-icon" viewBox="0 0 24 24">
+                            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+                        </svg>
+                        <span>Enlace Directo</span>
+                    </a>
+                </div>
+            </div>
+
+            <div class="status-toast" id="statusToast"></div>
         </div>
     </div>
 
-    <!-- Pantalla de Edging / Pausa -->
-    <div id="pauseOverlay">
-        <div id="pausePhrase">Ya casi...</div>
-        <div id="pauseTimer">30</div>
-    </div>
-
 <script>
-    // --- ELEMENTOS DEL DOM ---
-    const videoContainer = document.getElementById('videoContainer');
-    const video = document.getElementById('mainVideo');
-    const stageCanvas = document.getElementById('stageCanvas');
-    const stageCtx = stageCanvas.getContext('2d');
-    const ambilight = document.getElementById('ambilight');
-    const metronomeBar = document.getElementById('metronomeBar');
-    const metronomeDot = document.getElementById('metronomeDot');
-    const pauseOverlay = document.getElementById('pauseOverlay');
-    const pausePhrase = document.getElementById('pausePhrase');
-    const pauseTimer = document.getElementById('pauseTimer');
+    // --- REFERENCIAS DOM ---
     const setupUI = document.getElementById('setupUI');
-    const videoControls = document.getElementById('videoControls');
-    const goldenOverlay = document.getElementById('goldenOverlay');
-    const seekBar = document.getElementById('seekBar');
-    const currentTimeText = document.getElementById('currentTimeText');
-    const durationTimeText = document.getElementById('durationTimeText');
-    const recBtn = document.getElementById('recBtn');
+    const stageContainer = document.getElementById('stageContainer');
+    const exportCanvas = document.getElementById('exportCanvas');
+    const ctx = exportCanvas.getContext('2d', { alpha: true });
 
-    // Elementos del Modal de Descarga
+    const modeSelect = document.getElementById('modeSelect');
+    const durationSelect = document.getElementById('durationSelect');
+    const bgSelect = document.getElementById('bgSelect');
+
+    const controlDock = document.getElementById('controlDock');
+    const elapsedText = document.getElementById('elapsedText');
+    const totalText = document.getElementById('totalText');
+    const progressFill = document.getElementById('progressFill');
+    const btnPlayPause = document.getElementById('btnPlayPause');
+    const btnStopDownload = document.getElementById('btnStopDownload');
+
     const exportModal = document.getElementById('exportModal');
-    const exportTitle = document.getElementById('exportTitle');
-    const exportMeta = document.getElementById('exportMeta');
-    const exportPreviewVideo = document.getElementById('exportPreviewVideo');
-    const fallbackOpenLink = document.getElementById('fallbackOpenLink');
-    const exportStatusNote = document.getElementById('exportStatusNote');
+    const exportMetaText = document.getElementById('exportMetaText');
+    const previewVideo = document.getElementById('previewVideo');
+    const btnDownloadMain = document.getElementById('btnDownloadMain');
+    const btnShareFile = document.getElementById('btnShareFile');
+    const directAnchorLink = document.getElementById('directAnchorLink');
+    const statusToast = document.getElementById('statusToast');
 
-    // Iconos SVG minimalistas
-    const iconPause = '<svg viewBox="0 0 24 24"><line x1="9" y1="5" x2="9" y2="19"/><line x1="15" y1="5" x2="15" y2="19"/></svg>';
-    const iconPlay = '<svg viewBox="0 0 24 24"><polygon points="7 5 19 12 7 19 7 5"/></svg>';
-    const iconRecStart = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></svg><span id="recBtnLabel">Grabar</span>';
-    const iconRecStop = '<svg viewBox="0 0 24 24"><rect x="7" y="7" width="10" height="10" rx="2"/></svg><span id="recBtnLabel">Detener y Guardar</span>';
+    // --- ICONOS SVG MINIMALISTAS ---
+    const svgPause = '<svg viewBox="0 0 24 24"><line x1="9" y1="5" x2="9" y2="19"></line><line x1="15" y1="5" x2="15" y2="19"></line></svg>';
+    const svgPlay = '<svg viewBox="0 0 24 24"><polygon points="7 5 19 12 7 19 7 5"></polygon></svg>';
+    const svgDownload = '<svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>';
+    const svgRecord = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"></circle><circle cx="12" cy="12" r="3"></circle></svg>';
 
-    // --- ESTADO DEL JUEGO Y TEMPORIZADOR HÍBRIDO (CON O SIN VIDEO) ---
+    // --- CONFIGURACIÓN DE RITMOS Y VELOCIDADES EXACTAS ---
+    const colors = {
+        red: { hex: '#ff1a1a', speed: 1.2 },
+        green: { hex: '#00ff88', speed: 3.6 },
+        yellow: { hex: '#ffcc00', speed: 6.0 },
+        purple: { hex: '#aa00ff', speed: 9.0 },
+        gold: { hex: '#ffd700', speed: 10.5 }
+    };
+
+    // --- ESTADO DE SESIÓN Y METRÓNOMO ---
+    let config = {
+        mode: 'progressive',
+        targetDuration: 60,
+        bgMode: 'transparent'
+    };
+
     let gameActive = false;
-    let hasUserVideo = false;
-    let isSessionPaused = false;
+    let isUserPaused = false;
+    let isEdgingPaused = false;
+    let inGoldenZone = false;
     let currentColor = 'green';
     let dotPosition = 0;
     let dotDirection = 1;
-    let virtualCurrentTime = 0;
-    let lastFrameTime = performance.now();
-    let animFrame = null;
-    let analysisFrame = null;
-    let pInt = null;
-    let timeRemaining = 0;
-    let isPausedByGame = false;
-    let nextPauseTime = Infinity;
-    let inGoldenZone = false;
-    let colorStartTime = Date.now();
-    let isSeeking = false;
-    let controlsTimeout = null;
-    let currentPauseSeconds = 30;
-    let currentPauseText = "";
 
-    // Estado de Grabación y Archivo Exportado
+    let elapsedSeconds = 0;
+    let lastFrameTimestamp = 0;
+    let colorStartTimestamp = 0;
+    let nextPauseTarget = Infinity;
+    let edgingRemaining = 0;
+
+    let animFrameId = null;
+    let pacingIntervalId = null;
+    let edgingIntervalId = null;
+    let controlsTimeoutId = null;
+
+    // --- ESTADO DE AUDIO Y GRABACIÓN ---
+    let audioCtx = null;
+    let masterGain = null;
+    let audioDestination = null;
+    let keepAliveOsc = null;
+
     let isRecording = false;
     let mediaRecorder = null;
     let recordedChunks = [];
-    let recordingStartStamp = 0;
-    let lastBlobUrl = null;
-    let lastRecordedBlob = null;
-    let lastFilename = 'jerkof-overlay.webm';
+    let currentBlob = null;
+    let currentBlobUrl = null;
+    let currentFileName = 'jerkof-metronomo-1920x180.webm';
+    let currentMimeType = 'video/webm';
 
-    // Configuraciones
-    const config = {
-        fit: 'cover',
-        mode: 'progressive',
-        targetDuration: 900, // 15 min por defecto, hasta 3600s (1 hora)
-        bgMode: 'black',
-        edgingEnabled: true
-    };
-
-    // Paleta de 4 colores con velocidades duplicadas + Estado Dorado (Momento de Gloria)
-    const colors = {
-        red: {
-            label: 'Rojo',
-            hex: '#ff1a1a',
-            speed: 1.2,
-            gTop: 'rgba(255, 26, 26, 0.62)',
-            gMid: 'rgba(255, 26, 26, 0.26)',
-            gSoft: 'rgba(255, 26, 26, 0.07)',
-            glow: 'rgba(255, 26, 26, 0.7)'
-        },
-        green: {
-            label: 'Verde',
-            hex: '#00ff88',
-            speed: 3.6,
-            gTop: 'rgba(0, 255, 136, 0.56)',
-            gMid: 'rgba(0, 255, 136, 0.22)',
-            gSoft: 'rgba(0, 255, 136, 0.06)',
-            glow: 'rgba(0, 255, 136, 0.65)'
-        },
-        yellow: {
-            label: 'Amarillo',
-            hex: '#ffcc00',
-            speed: 6.0,
-            gTop: 'rgba(255, 204, 0, 0.60)',
-            gMid: 'rgba(255, 204, 0, 0.25)',
-            gSoft: 'rgba(255, 204, 0, 0.07)',
-            glow: 'rgba(255, 204, 0, 0.7)'
-        },
-        purple: {
-            label: 'Morado',
-            hex: '#aa00ff',
-            speed: 9.0,
-            gTop: 'rgba(170, 0, 255, 0.68)',
-            gMid: 'rgba(170, 0, 255, 0.30)',
-            gSoft: 'rgba(170, 0, 255, 0.09)',
-            glow: 'rgba(170, 0, 255, 0.8)'
-        },
-        gold: {
-            label: 'Gloria',
-            hex: '#ffd700',
-            speed: 10.5,
-            gTop: 'rgba(255, 215, 0, 0.78)',
-            gMid: 'rgba(255, 215, 0, 0.36)',
-            gSoft: 'rgba(255, 215, 0, 0.12)',
-            glow: 'rgba(255, 215, 0, 0.95)'
-        }
-    };
-
-    const phrases = [
-        "Estás a nada de soltar todo...",
-        "Ya casi...",
-        "Aguanta la presión...",
-        "Controla la respiración...",
-        "Siente cómo se acumula...",
-        "No te rindas ahora..."
-    ];
-
-    // --- MOTOR DE AUDIO SINTETIZADO PRE-CONECTADO (CERO CONGELAMIENTO AL GRABAR) ---
-    let audioCtx = null;
-    let masterGain = null;
-    let mediaDest = null;
-    let videoAudioSource = null;
-
-    function initAudio() {
+    // --- MOTOR DE AUDIO SINTETIZADO (WEB AUDIO API) ---
+    function initAudioEngine() {
         try {
             if (!audioCtx) {
                 const AudioContextClass = window.AudioContext || window.webkitAudioContext;
                 if (!AudioContextClass) return;
+
                 audioCtx = new AudioContextClass();
                 masterGain = audioCtx.createGain();
                 masterGain.gain.value = 1.0;
+
+                // Conectar salida audible y nodo de captura para MediaRecorder desde el inicio
                 masterGain.connect(audioCtx.destination);
+                audioDestination = audioCtx.createMediaStreamDestination();
+                masterGain.connect(audioDestination);
 
-                // Canal de grabación pre-enrutado desde el inicio con señal silenciosa viva
-                mediaDest = audioCtx.createMediaStreamDestination();
-                masterGain.connect(mediaDest);
-
-                const silentOsc = audioCtx.createOscillator();
+                // Oscilador silencioso constante para evitar que MediaRecorder corte la pista en silencios
+                keepAliveOsc = audioCtx.createOscillator();
                 const silentGain = audioCtx.createGain();
-                silentGain.gain.value = 0.00001;
-                silentOsc.connect(silentGain);
-                silentGain.connect(mediaDest);
-                silentOsc.start();
+                silentGain.gain.value = 0.0001;
+                keepAliveOsc.frequency.value = 40;
+                keepAliveOsc.connect(silentGain);
+                silentGain.connect(audioDestination);
+                keepAliveOsc.start();
             }
-            if (audioCtx && audioCtx.state === 'suspended') {
+
+            if (audioCtx.state === 'suspended') {
                 audioCtx.resume();
+            }
+        } catch (err) {
+            console.warn('AudioContext no disponible:', err);
+        }
+    }
+
+    function playBeatSound(colorKey) {
+        if (!gameActive || isUserPaused || isEdgingPaused) return;
+        initAudioEngine();
+        if (!audioCtx || !masterGain) return;
+
+        try {
+            const now = audioCtx.currentTime;
+
+            if (colorKey === 'red') {
+                // Sub-pulso grave seno 160Hz -> 95Hz
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(160, now);
+                osc.frequency.exponentialRampToValueAtTime(95, now + 0.18);
+
+                gain.gain.setValueAtTime(0.001, now);
+                gain.gain.linearRampToValueAtTime(0.3, now + 0.015);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+
+                osc.connect(gain);
+                gain.connect(masterGain);
+                osc.start(now);
+                osc.stop(now + 0.24);
+            } else if (colorKey === 'green') {
+                // Toque marimba triángulo 340Hz -> 310Hz
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(340, now);
+                osc.frequency.exponentialRampToValueAtTime(310, now + 0.11);
+
+                gain.gain.setValueAtTime(0.001, now);
+                gain.gain.linearRampToValueAtTime(0.24, now + 0.008);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+
+                osc.connect(gain);
+                gain.connect(masterGain);
+                osc.start(now);
+                osc.stop(now + 0.13);
+            } else if (colorKey === 'yellow') {
+                // Pulso armónico 520Hz + 780Hz
+                const osc1 = audioCtx.createOscillator();
+                const osc2 = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+
+                osc1.type = 'triangle';
+                osc1.frequency.setValueAtTime(520, now);
+                osc1.frequency.exponentialRampToValueAtTime(480, now + 0.09);
+
+                osc2.type = 'sine';
+                osc2.frequency.setValueAtTime(780, now);
+
+                gain.gain.setValueAtTime(0.001, now);
+                gain.gain.linearRampToValueAtTime(0.22, now + 0.006);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+
+                osc1.connect(gain);
+                osc2.connect(gain);
+                gain.connect(masterGain);
+                osc1.start(now);
+                osc2.start(now);
+                osc1.stop(now + 0.11);
+                osc2.stop(now + 0.11);
+            } else if (colorKey === 'purple') {
+                // Ping cristalino rápido sawtooth/sine 760Hz -> 880Hz + 1140Hz con filtro paso bajo
+                const osc = audioCtx.createOscillator();
+                const shimmer = audioCtx.createOscillator();
+                const filter = audioCtx.createBiquadFilter();
+                const gain = audioCtx.createGain();
+
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(760, now);
+                osc.frequency.exponentialRampToValueAtTime(880, now + 0.065);
+
+                shimmer.type = 'sine';
+                shimmer.frequency.setValueAtTime(1140, now);
+
+                filter.type = 'lowpass';
+                filter.frequency.setValueAtTime(2400, now);
+
+                gain.gain.setValueAtTime(0.001, now);
+                gain.gain.linearRampToValueAtTime(0.19, now + 0.004);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.075);
+
+                osc.connect(filter);
+                shimmer.connect(filter);
+                filter.connect(gain);
+                gain.connect(masterGain);
+                osc.start(now);
+                shimmer.start(now);
+                osc.stop(now + 0.085);
+                shimmer.stop(now + 0.085);
+            } else if (colorKey === 'gold') {
+                // Pulso armónico dorado brillante (Momento de Gloria)
+                const osc1 = audioCtx.createOscillator();
+                const osc2 = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+
+                osc1.type = 'sine';
+                osc1.frequency.setValueAtTime(880, now);
+                osc1.frequency.exponentialRampToValueAtTime(1046.5, now + 0.06);
+
+                osc2.type = 'triangle';
+                osc2.frequency.setValueAtTime(1318.5, now);
+
+                gain.gain.setValueAtTime(0.001, now);
+                gain.gain.linearRampToValueAtTime(0.22, now + 0.004);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.085);
+
+                osc1.connect(gain);
+                osc2.connect(gain);
+                gain.connect(masterGain);
+                osc1.start(now);
+                osc2.start(now);
+                osc1.stop(now + 0.09);
+                osc2.stop(now + 0.09);
             }
         } catch (err) {}
     }
 
-    function playBeatSound(colorKey) {
-        if (!gameActive || isPausedByGame || isSessionPaused) return;
-        initAudio();
-        if (!audioCtx || !masterGain) return;
-
-        const now = audioCtx.currentTime;
-        const activeKey = inGoldenZone ? 'gold' : colorKey;
-
-        if (activeKey === 'red') {
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(160, now);
-            osc.frequency.exponentialRampToValueAtTime(95, now + 0.18);
-
-            gain.gain.setValueAtTime(0.001, now);
-            gain.gain.linearRampToValueAtTime(0.28, now + 0.015);
-            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
-
-            osc.connect(gain);
-            gain.connect(masterGain);
-            osc.start(now);
-            osc.stop(now + 0.24);
-        } else if (activeKey === 'green') {
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            osc.type = 'triangle';
-            osc.frequency.setValueAtTime(340, now);
-            osc.frequency.exponentialRampToValueAtTime(310, now + 0.11);
-
-            gain.gain.setValueAtTime(0.001, now);
-            gain.gain.linearRampToValueAtTime(0.22, now + 0.008);
-            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
-
-            osc.connect(gain);
-            gain.connect(masterGain);
-            osc.start(now);
-            osc.stop(now + 0.13);
-        } else if (activeKey === 'yellow') {
-            const osc1 = audioCtx.createOscillator();
-            const osc2 = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-
-            osc1.type = 'triangle';
-            osc1.frequency.setValueAtTime(520, now);
-            osc1.frequency.exponentialRampToValueAtTime(480, now + 0.09);
-
-            osc2.type = 'sine';
-            osc2.frequency.setValueAtTime(780, now);
-
-            gain.gain.setValueAtTime(0.001, now);
-            gain.gain.linearRampToValueAtTime(0.2, now + 0.006);
-            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
-
-            osc1.connect(gain);
-            osc2.connect(gain);
-            gain.connect(masterGain);
-            osc1.start(now);
-            osc2.start(now);
-            osc1.stop(now + 0.11);
-            osc2.stop(now + 0.11);
-        } else if (activeKey === 'purple') {
-            const osc = audioCtx.createOscillator();
-            const shimmer = audioCtx.createOscillator();
-            const filter = audioCtx.createBiquadFilter();
-            const gain = audioCtx.createGain();
-
-            osc.type = 'sawtooth';
-            osc.frequency.setValueAtTime(760, now);
-            osc.frequency.exponentialRampToValueAtTime(880, now + 0.065);
-
-            shimmer.type = 'sine';
-            shimmer.frequency.setValueAtTime(1140, now);
-
-            filter.type = 'lowpass';
-            filter.frequency.setValueAtTime(2400, now);
-
-            gain.gain.setValueAtTime(0.001, now);
-            gain.gain.linearRampToValueAtTime(0.18, now + 0.004);
-            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.075);
-
-            osc.connect(filter);
-            shimmer.connect(filter);
-            filter.connect(gain);
-            gain.connect(masterGain);
-            osc.start(now);
-            shimmer.start(now);
-            osc.stop(now + 0.085);
-            shimmer.stop(now + 0.085);
-        } else if (activeKey === 'gold') {
-            const osc1 = audioCtx.createOscillator();
-            const osc2 = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-
-            osc1.type = 'triangle';
-            osc1.frequency.setValueAtTime(880, now);
-            osc1.frequency.exponentialRampToValueAtTime(1174.66, now + 0.07);
-
-            osc2.type = 'sine';
-            osc2.frequency.setValueAtTime(1318.5, now);
-
-            gain.gain.setValueAtTime(0.001, now);
-            gain.gain.linearRampToValueAtTime(0.22, now + 0.004);
-            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
-
-            osc1.connect(gain);
-            osc2.connect(gain);
-            gain.connect(masterGain);
-            osc1.start(now);
-            osc2.start(now);
-            osc1.stop(now + 0.085);
-            osc2.stop(now + 0.085);
-        }
-    }
-
     function playColorShiftCue(colorKey) {
-        if (!gameActive || isPausedByGame || isSessionPaused) return;
-        initAudio();
+        if (!gameActive || isUserPaused || isEdgingPaused) return;
+        initAudioEngine();
         if (!audioCtx || !masterGain) return;
 
-        const freqs = { red: 190, green: 390, yellow: 580, purple: 840, gold: 1046.5 };
-        const targetFreq = freqs[colorKey] || 440;
-        const now = audioCtx.currentTime;
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
+        try {
+            const freqs = { red: 190, green: 390, yellow: 580, purple: 840, gold: 1046 };
+            const now = audioCtx.currentTime;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
 
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(targetFreq * 0.85, now);
-        osc.frequency.exponentialRampToValueAtTime(targetFreq, now + 0.14);
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime((freqs[colorKey] || 440) * 0.85, now);
+            osc.frequency.exponentialRampToValueAtTime(freqs[colorKey] || 440, now + 0.12);
 
-        gain.gain.setValueAtTime(0.001, now);
-        gain.gain.linearRampToValueAtTime(0.14, now + 0.02);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+            gain.gain.setValueAtTime(0.001, now);
+            gain.gain.linearRampToValueAtTime(0.13, now + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
 
-        osc.connect(gain);
-        gain.connect(masterGain);
-        osc.start(now);
-        osc.stop(now + 0.2);
+            osc.connect(gain);
+            gain.connect(masterGain);
+            osc.start(now);
+            osc.stop(now + 0.18);
+        } catch (err) {}
     }
 
-    // Formatear segundos a mm:ss
+    // --- RENDERIZADO PANORÁMICO LIMPIO (1920 x 180 PX) ---
+    function drawRoundedBar(context, x, y, w, h, r) {
+        context.beginPath();
+        context.moveTo(x + r, y);
+        context.lineTo(x + w - r, y);
+        context.quadraticCurveTo(x + w, y, x + w, y + r);
+        context.lineTo(x + w, y + h - r);
+        context.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+        context.lineTo(x + r, y + h);
+        context.quadraticCurveTo(x, y + h, x, y + h - r);
+        context.lineTo(x, y + r);
+        context.quadraticCurveTo(x, y, x + r, y);
+        context.closePath();
+    }
+
+    function renderMetronomeFrame() {
+        const cw = 1920;
+        const ch = 180;
+
+        // 1. Fondo exacto según configuración
+        if (config.bgMode === 'transparent') {
+            ctx.clearRect(0, 0, cw, ch);
+        } else if (config.bgMode === 'green') {
+            ctx.fillStyle = '#00FF00';
+            ctx.fillRect(0, 0, cw, ch);
+        } else {
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0, 0, cw, ch);
+        }
+
+        const activeKey = inGoldenZone ? 'gold' : currentColor;
+        const activeData = colors[activeKey];
+        const hex = activeData.hex;
+
+        // Dimensiones exactas de la barra y la bolita dentro de 1920x180
+        const barX = 80;
+        const barW = 1760; // de x = 80 hasta x = 1840
+        const barH = 8;
+        const barY = 90 - barH / 2; // centrada verticalmente en y = 90
+        const dotR = 22;
+
+        // Durante pausa de edging, la barra queda tenue en espera sin textos encima
+        const isDimmed = isEdgingPaused;
+        const pulseFactor = inGoldenZone ? (0.75 + 0.25 * Math.sin(performance.now() / 120)) : 1;
+
+        // 2. Barra horizontal fina redondeada con brillo sutil del color activo
+        ctx.save();
+        ctx.fillStyle = isDimmed ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.18)';
+        ctx.shadowColor = isDimmed ? 'transparent' : hex;
+        ctx.shadowBlur = inGoldenZone ? 22 * pulseFactor : 14;
+        drawRoundedBar(ctx, barX, barY, barW, barH, barH / 2);
+        ctx.fill();
+
+        // Tinte sutil de color sobre la barra para mayor nitidez
+        if (!isDimmed) {
+            ctx.globalAlpha = inGoldenZone ? 0.55 : 0.25;
+            ctx.fillStyle = hex;
+            drawRoundedBar(ctx, barX, barY, barW, barH, barH / 2);
+            ctx.fill();
+        }
+        ctx.restore();
+
+        // 3. Bolita brillante desplazándose de extremo a extremo (con halo contenido dentro de 180px)
+        const dotX = barX + (barW * (dotPosition / 100));
+        const dotY = 90;
+
+        ctx.save();
+        ctx.globalAlpha = isDimmed ? 0.35 : 1.0;
+
+        // Halo suave contenido (radio exterior máximo ~46px < 90px de margen vertical)
+        const haloRadius = inGoldenZone ? 48 * pulseFactor : 40;
+        const haloGrad = ctx.createRadialGradient(dotX, dotY, dotR * 0.4, dotX, dotY, haloRadius);
+        haloGrad.addColorStop(0, hex);
+        haloGrad.addColorStop(0.55, hex + '55');
+        haloGrad.addColorStop(1, hex + '00');
+        ctx.fillStyle = haloGrad;
+        ctx.beginPath();
+        ctx.arc(dotX, dotY, haloRadius, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Esfera sólida vibrante
+        ctx.shadowColor = hex;
+        ctx.shadowBlur = inGoldenZone ? 26 : 18;
+        ctx.fillStyle = hex;
+        ctx.beginPath();
+        ctx.arc(dotX, dotY, dotR, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Núcleo especular sutil para definición cristalina sobre cualquier video
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.42)';
+        ctx.beginPath();
+        ctx.arc(dotX - dotR * 0.25, dotY - dotR * 0.25, dotR * 0.32, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.restore();
+    }
+
+    // --- MOTOR PRINCIPAL DE TIEMPO Y ANIMACIÓN ---
     function formatTime(sec) {
-        if (isNaN(sec) || !isFinite(sec) || sec < 0) return "00:00";
+        if (!isFinite(sec) || sec < 0) sec = 0;
         const m = Math.floor(sec / 60);
         const s = Math.floor(sec % 60);
-        return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+        return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
     }
 
-    // --- CONFIGURACIÓN DEL LIENZO DE ESCENARIO Y GRABACIÓN ---
-    function updateStageCanvasSize() {
-        if (isRecording) return;
-        const bgMode = document.getElementById('bgModeSelect').value;
-        config.bgMode = bgMode;
+    function startSession(autoRecord) {
+        initAudioEngine();
 
-        if (bgMode === 'strip') {
-            stageCanvas.width = 1920;
-            stageCanvas.height = 240;
-        } else if (config.fit === 'cover') {
-            stageCanvas.width = 720;
-            stageCanvas.height = 1280;
-        } else {
-            stageCanvas.width = 1280;
-            stageCanvas.height = 720;
-        }
-    }
+        config.mode = modeSelect.value;
+        config.targetDuration = parseFloat(durationSelect.value) * 60;
+        config.bgMode = bgSelect.value;
 
-    window.addEventListener('resize', updateStageCanvasSize);
+        exportCanvas.classList.toggle('preview-checker', config.bgMode === 'transparent');
 
-    // --- UI INICIAL ---
-    function toggleFit() {
-        const btn = document.getElementById('btnFit');
-        config.fit = config.fit === 'cover' ? 'contain' : 'cover';
-        btn.innerText = config.fit === 'cover' ? 'Vertical (9:16)' : 'Horizontal (16:9)';
-        btn.classList.toggle('active');
-        video.style.objectFit = config.fit;
-        updateStageCanvasSize();
-    }
-
-    function toggleEdgingPause() {
-        const btn = document.getElementById('btnEdgingToggle');
-        config.edgingEnabled = !config.edgingEnabled;
-        btn.innerText = config.edgingEnabled ? 'Activadas' : 'Desactivadas';
-        btn.classList.toggle('active', config.edgingEnabled);
-    }
-
-    // --- INICIO OPCIÓN 1: GRABAR Y DESCARGAR DESDE EL SEGUNDO 0 ---
-    function startOverlayAndRecord() {
-        startOverlayStandalone(true);
-    }
-
-    // --- INICIO OPCIÓN 2: OVERLAY SIN VIDEO (HASTA 1 HORA) ---
-    function startOverlayStandalone(autoRecord = false) {
-        initAudio();
-        hasUserVideo = false;
-        video.pause();
-        video.style.display = 'none';
-
-        const durVal = document.getElementById('durationSelect').value;
-        config.targetDuration = durVal === 'auto' ? 900 : parseFloat(durVal) * 60;
-        config.mode = document.getElementById('modeSelect').value;
-        config.bgMode = document.getElementById('bgModeSelect').value;
-
-        updateStageCanvasSize();
-        setupUI.style.display = 'none';
-        metronomeBar.style.display = 'block';
-
-        virtualCurrentTime = 0;
-        seekBar.max = config.targetDuration;
-        seekBar.value = 0;
-        durationTimeText.innerText = formatTime(config.targetDuration);
-        currentTimeText.innerText = "00:00";
-
-        startGame();
-
-        if (autoRecord) {
-            // Arranca grabación con pantalla 100% limpia (solo metrónomo superior)
-            videoControls.classList.remove('show');
-            startRecording();
-        } else {
-            showControls();
-        }
-    }
-
-    // --- INICIO OPCIÓN 3: CARGA DE VIDEO DEL USUARIO ---
-    document.getElementById('videoUpload').addEventListener('change', function(e) {
-        const file = e.target.files[0];
-        if (!file) return;
-
-        initAudio();
-        hasUserVideo = true;
-        const url = URL.createObjectURL(file);
-        video.src = url;
-        video.style.display = 'block';
-        video.load();
-
-        video.onloadedmetadata = () => {
-            setupUI.style.display = 'none';
-            metronomeBar.style.display = 'block';
-            
-            const dur = document.getElementById('durationSelect').value;
-            config.targetDuration = dur === 'auto' ? (video.duration || 900) : parseFloat(dur) * 60;
-            config.mode = document.getElementById('modeSelect').value;
-            config.bgMode = document.getElementById('bgModeSelect').value;
-
-            updateStageCanvasSize();
-            virtualCurrentTime = 0;
-            seekBar.max = config.targetDuration;
-            seekBar.value = 0;
-            durationTimeText.innerText = formatTime(config.targetDuration);
-            currentTimeText.innerText = "00:00";
-            
-            startGame();
-            showControls();
-        };
-    });
-
-    // --- BARRA DE DESLIZAMIENTO (PERMITE RECORRER HASTA 60 MINUTOS Y PROBAR GLORIA) ---
-    seekBar.addEventListener('input', () => {
-        isSeeking = true;
-        clearTimeout(controlsTimeout);
-        const targetSec = parseFloat(seekBar.value);
-        currentTimeText.innerText = formatTime(targetSec);
-    });
-
-    seekBar.addEventListener('change', () => {
-        const targetSec = parseFloat(seekBar.value);
-        virtualCurrentTime = targetSec;
-        if (hasUserVideo && video.duration) {
-            video.currentTime = targetSec % video.duration;
-        }
-        isSeeking = false;
-
-        const rem = config.targetDuration - targetSec;
-        if (rem > 20 && inGoldenZone) {
-            exitGoldenZone();
-        } else if (rem <= 20 && rem > 0 && !inGoldenZone) {
-            triggerGoldenZone();
-        }
-
-        if (targetSec < nextPauseTime - 300) {
-            scheduleNextPause();
-        }
-        showControls();
-    });
-
-    // --- MOTOR PRINCIPAL ---
-    function startGame() {
+        // Reiniciar variables de estado
         gameActive = true;
-        isSessionPaused = false;
-        isPausedByGame = false;
+        isUserPaused = false;
+        isEdgingPaused = false;
         inGoldenZone = false;
         currentColor = 'green';
-        dotPosition = 50;
+        dotPosition = 0;
         dotDirection = 1;
-        lastFrameTime = performance.now();
+        elapsedSeconds = 0;
+        lastFrameTimestamp = performance.now();
+        colorStartTimestamp = Date.now();
 
-        document.getElementById('playPauseBtn').innerHTML = iconPause;
-        goldenOverlay.style.display = 'none';
-        updateQuickPillsUI();
+        btnPlayPause.innerHTML = svgPause;
+        totalText.textContent = formatTime(config.targetDuration);
+        elapsedText.textContent = '00:00';
+        progressFill.style.width = '0%';
+        progressFill.style.background = colors.green.hex;
+        progressFill.style.boxShadow = `0 0 10px ${colors.green.hex}`;
 
-        if (hasUserVideo) {
-            video.play().catch(() => {});
-        }
-        colorStartTime = Date.now();
-        
+        setupUI.style.display = 'none';
         scheduleNextPause();
-        cancelAnimationFrame(animFrame);
-        clearInterval(analysisFrame);
-        animFrame = requestAnimationFrame(gameLoop);
-        analysisFrame = setInterval(evaluatePacing, 1000); 
-    }
+        renderMetronomeFrame();
 
-    function getElapsedSessionTime(dt) {
-        if (hasUserVideo && !video.paused && config.targetDuration <= (video.duration || 0)) {
-            virtualCurrentTime = video.currentTime;
-        } else if (!isSessionPaused && !isPausedByGame) {
-            virtualCurrentTime += dt;
-            if (hasUserVideo && video.duration && video.currentTime >= video.duration - 0.15) {
-                video.currentTime = 0;
-                video.play().catch(() => {});
-            }
+        if (autoRecord) {
+            startCanvasRecording();
+        } else {
+            updateRecordButtonUI(false);
         }
-        return virtualCurrentTime;
+
+        cancelAnimationFrame(animFrameId);
+        clearInterval(pacingIntervalId);
+        clearInterval(edgingIntervalId);
+
+        animFrameId = requestAnimationFrame(gameLoop);
+        pacingIntervalId = setInterval(evaluatePacing, 1000);
+        showControlsTemporarily();
     }
 
     function gameLoop(now) {
         if (!gameActive) return;
 
-        const dt = Math.min(0.1, Math.max(0.001, (now - lastFrameTime) / 1000));
-        lastFrameTime = now;
-        const frameScale = dt * 60;
+        const dt = Math.min(0.1, (now - lastFrameTimestamp) / 1000);
+        lastFrameTimestamp = now;
 
-        const currentRealTime = getElapsedSessionTime(dt);
-        timeRemaining = Math.max(0, config.targetDuration - currentRealTime);
+        if (!isUserPaused) {
+            elapsedSeconds += dt;
+            const timeRemaining = Math.max(0, config.targetDuration - elapsedSeconds);
 
-        if (!isSeeking) {
-            seekBar.value = Math.min(config.targetDuration, currentRealTime);
-            currentTimeText.innerText = formatTime(currentRealTime);
-        }
+            // Actualizar barra de progreso minimalista
+            const pct = Math.min(100, (elapsedSeconds / config.targetDuration) * 100);
+            elapsedText.textContent = formatTime(elapsedSeconds);
+            progressFill.style.width = `${pct}%`;
 
-        if (!isPausedByGame) {
-            const activePalette = inGoldenZone ? colors.gold : colors[currentColor];
+            if (!isEdgingPaused) {
+                const activeKey = inGoldenZone ? 'gold' : currentColor;
+                // Escala sincronizada a 60fps base para respetar exactamente las velocidades (1.2, 3.6, 6.0, 9.0, 10.5)
+                const step = colors[activeKey].speed * (dt * 60);
+                dotPosition += step * dotDirection;
 
-            if (!isSessionPaused) {
-                const speed = activePalette.speed;
-                dotPosition += speed * dotDirection * frameScale;
                 if (dotPosition >= 100) {
                     dotPosition = 100;
                     dotDirection = -1;
-                    playBeatSound(currentColor);
+                    playBeatSound(activeKey);
                 } else if (dotPosition <= 0) {
                     dotPosition = 0;
                     dotDirection = 1;
-                    playBeatSound(currentColor);
+                    playBeatSound(activeKey);
+                }
+
+                // Pausas programadas (cada 2 a 5 min si la duración >= 60s)
+                if (elapsedSeconds >= nextPauseTarget && timeRemaining > 35 && !inGoldenZone) {
+                    triggerEdgingPause();
+                }
+
+                // Momento de Gloria (Últimos 20 segundos)
+                if (timeRemaining <= 20 && timeRemaining > 0 && !inGoldenZone) {
+                    triggerGoldenZone();
                 }
             }
-            
-            // Actualizar DOM Superior (Solo metrónomo y luz superior limpios)
-            metronomeDot.style.left = `${dotPosition}%`;
-            metronomeDot.style.color = activePalette.hex;
-            metronomeDot.style.background = activePalette.hex;
-            metronomeDot.style.boxShadow = `0 0 16px ${activePalette.hex}, 0 0 6px #fff`;
-            
-            ambilight.style.background = `linear-gradient(180deg, ${activePalette.gTop} 0%, ${activePalette.gMid} 35%, ${activePalette.gSoft} 70%, rgba(0, 0, 0, 0) 100%)`;
-            metronomeBar.style.boxShadow = `0 0 12px ${activePalette.glow}`;
 
-            // Chequeos de Tiempo (Pausas Edging)
-            if (config.edgingEnabled && currentRealTime >= nextPauseTime && timeRemaining > 30 && !inGoldenZone) {
-                triggerPause();
-            }
-
-            // Clímax / Momento de Gloria (Últimos 20 segundos)
-            if (timeRemaining <= 20 && timeRemaining > 0 && !inGoldenZone) {
-                triggerGoldenZone();
-            }
-            
-            // Finalización de la Sesión
-            if (timeRemaining <= 0 && config.targetDuration > 0) {
-                endGame();
-                return; 
+            // Finalización automática al completar la duración
+            if (timeRemaining <= 0) {
+                renderMetronomeFrame();
+                finishSession();
+                return;
             }
         }
 
-        // Renderizar fotograma en el Canvas Visible (que alimenta la grabación directamente)
-        renderStageCanvasFrame();
-
-        animFrame = requestAnimationFrame(gameLoop);
+        renderMetronomeFrame();
+        animFrameId = requestAnimationFrame(gameLoop);
     }
 
-    // --- DIBUJADO EN EL CANVAS VISIBLE / GRABABLE (INCLUYE MOMENTO DE GLORIA Y PAUSAS) ---
-    function drawRoundedBar(ctx, x, y, w, h, r) {
-        ctx.beginPath();
-        ctx.moveTo(x + r, y);
-        ctx.lineTo(x + w - r, y);
-        ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-        ctx.lineTo(x + w, y + h - r);
-        ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-        ctx.lineTo(x + r, y + h);
-        ctx.quadraticCurveTo(x, y + h, x, y + h - r);
-        ctx.lineTo(x, y + r);
-        ctx.quadraticCurveTo(x, y, x + r, y);
-        ctx.closePath();
-    }
-
-    function renderStageCanvasFrame() {
-        const cw = stageCanvas.width;
-        const ch = stageCanvas.height;
-        const uiScale = cw / 720;
-
-        // 1. Fondo según modo elegido
-        if (config.bgMode === 'chroma') {
-            stageCtx.fillStyle = '#00FF00';
-            stageCtx.fillRect(0, 0, cw, ch);
-        } else if (config.bgMode === 'video' && hasUserVideo && video.readyState >= 2) {
-            stageCtx.fillStyle = '#000000';
-            stageCtx.fillRect(0, 0, cw, ch);
-            const vw = video.videoWidth || cw;
-            const vh = video.videoHeight || ch;
-            const videoRatio = vw / vh;
-            const canvasRatio = cw / ch;
-            let drawW, drawH;
-            if (config.fit === 'cover') {
-                if (videoRatio > canvasRatio) { drawH = ch; drawW = ch * videoRatio; }
-                else { drawW = cw; drawH = cw / videoRatio; }
-            } else {
-                if (videoRatio > canvasRatio) { drawW = cw; drawH = cw / videoRatio; }
-                else { drawH = ch; drawW = ch * videoRatio; }
-            }
-            stageCtx.drawImage(video, (cw - drawW) / 2, (ch - drawH) / 2, drawW, drawH);
-        } else {
-            if (hasUserVideo && !isRecording) {
-                stageCtx.clearRect(0, 0, cw, ch);
-            } else {
-                stageCtx.fillStyle = '#000000';
-                stageCtx.fillRect(0, 0, cw, ch);
-            }
-        }
-
-        // 2. Si está en Pausa de Edging, renderizar la pantalla de pausa en la grabación
-        if (isPausedByGame && config.bgMode !== 'strip') {
-            stageCtx.fillStyle = '#000000';
-            stageCtx.fillRect(0, 0, cw, ch);
-
-            if (currentPauseSeconds > 5) {
-                stageCtx.save();
-                stageCtx.fillStyle = '#ff1a1a';
-                stageCtx.shadowColor = 'rgba(255, 26, 26, 0.5)';
-                stageCtx.shadowBlur = 15 * uiScale;
-                stageCtx.font = `300 ${Math.round(28 * uiScale)}px -apple-system, BlinkMacSystemFont, sans-serif`;
-                stageCtx.textAlign = 'center';
-                stageCtx.textBaseline = 'middle';
-                stageCtx.fillText(currentPauseText, cw / 2, ch / 2 - 45 * uiScale);
-                stageCtx.restore();
-            }
-
-            stageCtx.save();
-            const isHuge = currentPauseSeconds <= 5;
-            stageCtx.fillStyle = isHuge ? '#ff1a1a' : '#ffffff';
-            if (isHuge) {
-                stageCtx.shadowColor = 'rgba(255, 26, 26, 0.85)';
-                stageCtx.shadowBlur = 40 * uiScale;
-            }
-            const timerPx = isHuge ? 140 * uiScale : 64 * uiScale;
-            stageCtx.font = `700 ${Math.round(timerPx)}px -apple-system, BlinkMacSystemFont, sans-serif`;
-            stageCtx.textAlign = 'center';
-            stageCtx.textBaseline = 'middle';
-            stageCtx.fillText(String(currentPauseSeconds), cw / 2, isHuge ? ch / 2 : ch / 2 + 25 * uiScale);
-            stageCtx.restore();
-            return;
-        }
-
-        // 3. Luz Superior Ambilight + Barra del Metrónomo + Bolita
-        const activePalette = inGoldenZone ? colors.gold : colors[currentColor];
-        const ambHeight = config.bgMode === 'strip' ? ch * 0.92 : 135 * uiScale;
-        const grad = stageCtx.createLinearGradient(0, 0, 0, ambHeight);
-        grad.addColorStop(0, activePalette.gTop);
-        grad.addColorStop(0.35, activePalette.gMid);
-        grad.addColorStop(0.70, activePalette.gSoft);
-        grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
-        stageCtx.fillStyle = grad;
-        stageCtx.fillRect(0, 0, cw, ambHeight);
-
-        const barX = cw * 0.10;
-        const barW = cw * 0.80;
-        const barY = config.bgMode === 'strip' ? 38 : 22 * uiScale;
-        const barH = config.bgMode === 'strip' ? 7 : 5 * uiScale;
-
-        stageCtx.save();
-        stageCtx.fillStyle = 'rgba(255, 255, 255, 0.2)';
-        stageCtx.shadowColor = activePalette.glow;
-        stageCtx.shadowBlur = 14 * uiScale;
-        drawRoundedBar(stageCtx, barX, barY, barW, barH, barH / 2);
-        stageCtx.fill();
-        stageCtx.restore();
-
-        const dotX = barX + (barW * (dotPosition / 100));
-        const dotY = barY + barH / 2;
-        const dotR = config.bgMode === 'strip' ? 14 : 9 * uiScale;
-
-        stageCtx.save();
-        stageCtx.fillStyle = activePalette.hex;
-        stageCtx.shadowColor = activePalette.hex;
-        stageCtx.shadowBlur = 22 * uiScale;
-        stageCtx.beginPath();
-        stageCtx.arc(dotX, dotY, dotR, 0, Math.PI * 2);
-        stageCtx.fill();
-        stageCtx.restore();
-
-        stageCtx.save();
-        stageCtx.fillStyle = '#ffffff';
-        stageCtx.beginPath();
-        stageCtx.arc(dotX, dotY, dotR * 0.45, 0, Math.PI * 2);
-        stageCtx.fill();
-        stageCtx.restore();
-
-        // 4. Marco Dorado Pulsante Limpio durante el Momento de Gloria (Últimos 20s)
-        if (inGoldenZone && config.bgMode !== 'strip') {
-            const pulse = 0.5 + 0.5 * Math.sin(performance.now() / 220);
-            const borderW = (28 + pulse * 26) * uiScale;
-            const alpha = 0.45 + pulse * 0.4;
-
-            stageCtx.save();
-            stageCtx.strokeStyle = `rgba(255, 215, 0, ${alpha})`;
-            stageCtx.shadowColor = '#ffd700';
-            stageCtx.shadowBlur = 45 * uiScale;
-            stageCtx.lineWidth = borderW;
-            stageCtx.strokeRect(0, 0, cw, ch);
-            stageCtx.restore();
-        }
-    }
-
-    // --- LÓGICA DE MODOS DE SEMÁFORO ---
+    // --- LÓGICA DEL SEMÁFORO (PROGRESIVO / ALEATORIO) ---
     function evaluatePacing() {
-        if (isPausedByGame || inGoldenZone || isSessionPaused) return;
+        if (!gameActive || isUserPaused || isEdgingPaused || inGoldenZone) return;
 
-        const timeInColor = (Date.now() - colorStartTime) / 1000;
-        let nextColor = currentColor;
-        const changeThreshold = 4 + Math.random() * 8; 
-
+        const timeInColor = (Date.now() - colorStartTimestamp) / 1000;
+        const changeThreshold = 4 + Math.random() * 8;
         if (timeInColor < changeThreshold) return;
 
+        let nextColor = currentColor;
         const rand = Math.random();
 
         if (config.mode === 'random') {
@@ -1540,31 +1143,26 @@
             else if (rand < 0.50) nextColor = 'green';
             else if (rand < 0.75) nextColor = 'yellow';
             else nextColor = 'purple';
-        } 
-        else if (config.mode === 'progressive') {
-            const totalPlayableTime = Math.max(1, config.targetDuration - 20);
-            const timePlayed = config.targetDuration - timeRemaining;
-            const progress = Math.max(0, Math.min(1, timePlayed / totalPlayableTime));
+        } else {
+            const totalPlayable = Math.max(1, config.targetDuration - 20);
+            const progress = Math.max(0, Math.min(1, elapsedSeconds / totalPlayable));
 
             if (progress < 0.25) {
                 if (rand < 0.55) nextColor = 'green';
                 else if (rand < 0.85) nextColor = 'red';
                 else if (rand < 0.95) nextColor = 'yellow';
                 else nextColor = 'purple';
-            } 
-            else if (progress < 0.50) {
+            } else if (progress < 0.50) {
                 if (rand < 0.45) nextColor = 'green';
                 else if (rand < 0.70) nextColor = 'yellow';
                 else if (rand < 0.85) nextColor = 'red';
                 else nextColor = 'purple';
-            } 
-            else if (progress < 0.75) {
+            } else if (progress < 0.75) {
                 if (rand < 0.50) nextColor = 'yellow';
                 else if (rand < 0.80) nextColor = 'purple';
                 else if (rand < 0.95) nextColor = 'green';
                 else nextColor = 'red';
-            } 
-            else {
+            } else {
                 if (rand < 0.50) nextColor = 'purple';
                 else if (rand < 0.80) nextColor = 'yellow';
                 else if (rand < 0.90) nextColor = 'green';
@@ -1572,451 +1170,382 @@
             }
         }
 
+        // Sistema anti-bloqueo morado (> 8 segundos)
         if (currentColor === 'purple' && timeInColor > 8) {
-            nextColor = (Math.random() > 0.5) ? 'red' : 'green'; 
+            nextColor = Math.random() > 0.5 ? 'red' : 'green';
         }
 
-        changeColor(nextColor);
-    }
-
-    function changeColor(nc) {
-        if (currentColor === nc && !inGoldenZone) return;
-        currentColor = nc;
-        colorStartTime = Date.now();
-        updateQuickPillsUI();
-        playColorShiftCue(nc);
-    }
-
-    function forceColor(nc) {
-        initAudio();
-        if (inGoldenZone) {
-            exitGoldenZone();
+        if (nextColor !== currentColor) {
+            currentColor = nextColor;
+            colorStartTimestamp = Date.now();
+            progressFill.style.background = colors[nextColor].hex;
+            progressFill.style.boxShadow = `0 0 10px ${colors[nextColor].hex}`;
+            playColorShiftCue(nextColor);
         }
-        changeColor(nc);
-        showControls();
     }
 
-    function jumpToGoldenZone() {
-        initAudio();
-        virtualCurrentTime = Math.max(0, config.targetDuration - 20);
-        if (hasUserVideo && video.duration) {
-            video.currentTime = Math.max(0, video.duration - 20);
-        }
-        triggerGoldenZone();
-        showControls();
-    }
-
-    function updateQuickPillsUI() {
-        ['red', 'green', 'yellow', 'purple', 'gold'].forEach(k => {
-            const el = document.getElementById(`qpill-${k}`);
-            if (!el) return;
-            const isAct = (inGoldenZone && k === 'gold') || (!inGoldenZone && k === currentColor);
-            el.classList.toggle('active', isAct);
-        });
-    }
-
-    // --- DESCANSOS Y MOMENTO DE GLORIA (ÚLTIMOS 20S) ---
+    // --- PAUSAS DE EDGING Y MOMENTO DE GLORIA ---
     function scheduleNextPause() {
-        if (!config.edgingEnabled || config.targetDuration < 60) {
-            nextPauseTime = Infinity;
+        if (config.targetDuration < 60) {
+            nextPauseTarget = Infinity;
             return;
         }
-        const interval = (Math.random() * 180) + 120; 
-        nextPauseTime = virtualCurrentTime + interval;
+        // Entre 2 y 5 minutos (120s a 300s)
+        const interval = 120 + Math.random() * 180;
+        nextPauseTarget = elapsedSeconds + interval;
     }
 
-    function triggerPause() {
-        isPausedByGame = true;
-        if (hasUserVideo) video.pause();
-        pauseOverlay.style.display = 'flex';
-        videoControls.classList.remove('show');
-        metronomeBar.style.display = 'none';
-        ambilight.style.display = 'none';
-        
-        currentPauseText = phrases[Math.floor(Math.random() * phrases.length)];
-        pausePhrase.innerText = currentPauseText;
-        pausePhrase.style.opacity = 1;
-        
-        let pTime = 30;
-        currentPauseSeconds = pTime;
-        pauseTimer.innerText = pTime;
-        pauseTimer.className = '';
+    function triggerEdgingPause() {
+        isEdgingPaused = true;
+        edgingRemaining = 30;
+        clearInterval(edgingIntervalId);
 
-        clearInterval(pInt);
-        pInt = setInterval(() => {
-            pTime--;
-            currentPauseSeconds = pTime;
-            pauseTimer.innerText = pTime;
-            
-            if (pTime <= 5) {
-                pauseTimer.classList.add('huge-timer');
-                pausePhrase.style.opacity = 0;
-            }
-            
-            if (pTime <= 0) {
-                clearInterval(pInt);
-                isPausedByGame = false;
-                pauseOverlay.style.display = 'none';
-                metronomeBar.style.display = 'block';
-                ambilight.style.display = 'block';
-                if (hasUserVideo && !isSessionPaused) video.play().catch(() => {});
+        edgingIntervalId = setInterval(() => {
+            if (!gameActive || isUserPaused) return;
+            edgingRemaining--;
+            if (edgingRemaining <= 0) {
+                clearInterval(edgingIntervalId);
+                isEdgingPaused = false;
+                colorStartTimestamp = Date.now();
                 scheduleNextPause();
-                showControls();
             }
         }, 1000);
     }
 
     function triggerGoldenZone() {
         inGoldenZone = true;
-        goldenOverlay.style.display = 'block';
-        metronomeBar.style.display = 'block';
-        updateQuickPillsUI();
+        isEdgingPaused = false;
+        clearInterval(edgingIntervalId);
+        progressFill.style.background = colors.gold.hex;
+        progressFill.style.boxShadow = `0 0 12px ${colors.gold.hex}`;
         playColorShiftCue('gold');
     }
 
-    function exitGoldenZone() {
-        inGoldenZone = false;
-        goldenOverlay.style.display = 'none';
-        updateQuickPillsUI();
-    }
-
-    function endGame() {
-        if (isRecording) {
-            stopRecording();
-        }
-        gameActive = false;
-        isSessionPaused = true;
-        if (hasUserVideo) video.pause();
-        goldenOverlay.style.display = 'none';
-        ambilight.style.background = 'none';
-        document.getElementById('playPauseBtn').innerHTML = iconPlay;
-        showControls();
-    }
-
-    // --- SISTEMA DE GRABACIÓN Y DESCARGA GARANTIZADA ---
-    function toggleRecording() {
+    function jumpToGoldenZone() {
         if (!gameActive) return;
-        initAudio();
-        if (isRecording) {
-            stopRecording();
+        initAudioEngine();
+        elapsedSeconds = Math.max(0, config.targetDuration - 20);
+        triggerGoldenZone();
+        showControlsTemporarily();
+    }
+
+    // --- SISTEMA DE GRABACIÓN Y DESCARGA INFALIBLE ---
+    function updateRecordButtonUI(recordingState) {
+        if (recordingState) {
+            btnStopDownload.classList.add('rec-stop-btn');
+            btnStopDownload.title = 'Detener Grabación y Descargar';
+            btnStopDownload.innerHTML = svgDownload;
         } else {
-            startRecording();
-            showControls();
+            btnStopDownload.classList.remove('rec-stop-btn');
+            btnStopDownload.title = 'Iniciar Grabación del Metrónomo';
+            btnStopDownload.innerHTML = svgRecord;
         }
     }
 
-    function startRecording() {
+    function startCanvasRecording() {
         if (isRecording) return;
-        initAudio();
-        closeExportModal();
+        initAudioEngine();
 
-        if (isSessionPaused) {
-            togglePlay();
-        }
+        try {
+            const canvasStream = exportCanvas.captureStream(30);
+            const tracks = [...canvasStream.getVideoTracks()];
 
-        renderStageCanvasFrame();
-
-        const canvasStream = stageCanvas.captureStream
-            ? stageCanvas.captureStream(30)
-            : (stageCanvas.mozCaptureStream ? stageCanvas.mozCaptureStream(30) : null);
-
-        if (!canvasStream) {
-            exportTitle.innerText = 'Grabación no soportada';
-            exportMeta.innerText = 'Tu navegador actual no soporta captura de lienzo. Prueba en Chrome, Edge o Safari.';
-            exportModal.classList.add('visible');
-            return;
-        }
-
-        const combinedTracks = [...canvasStream.getVideoTracks()];
-
-        if (audioCtx && mediaDest) {
-            try {
-                if (hasUserVideo && config.bgMode === 'video' && !videoAudioSource) {
-                    videoAudioSource = audioCtx.createMediaElementSource(video);
-                    videoAudioSource.connect(audioCtx.destination);
-                    videoAudioSource.connect(mediaDest);
-                }
-                const audioTracks = mediaDest.stream.getAudioTracks();
+            if (audioDestination && audioDestination.stream) {
+                const audioTracks = audioDestination.stream.getAudioTracks();
                 if (audioTracks.length > 0) {
-                    combinedTracks.push(audioTracks[0]);
+                    tracks.push(audioTracks[0]);
                 }
-            } catch (e) {}
-        }
+            }
 
-        const mixedStream = new MediaStream(combinedTracks);
-        const mimeOptions = [
-            'video/mp4;codecs=avc1,mp4a.40.2',
-            'video/mp4',
-            'video/webm;codecs=vp9,opus',
-            'video/webm;codecs=vp8,opus',
-            'video/webm'
-        ];
-        let selectedMime = '';
-        if (window.MediaRecorder && typeof MediaRecorder.isTypeSupported === 'function') {
-            selectedMime = mimeOptions.find(m => MediaRecorder.isTypeSupported(m)) || '';
-        }
+            const combinedStream = new MediaStream(tracks);
 
-        try {
-            mediaRecorder = selectedMime
-                ? new MediaRecorder(mixedStream, { mimeType: selectedMime, videoBitsPerSecond: 4000000 })
-                : new MediaRecorder(mixedStream);
+            // Priorizar codecs compatibles con alpha cuando se selecciona fondo transparente
+            const mimeCandidates = config.bgMode === 'transparent'
+                ? [
+                    'video/webm;codecs=vp9,opus',
+                    'video/webm;codecs=vp8,opus',
+                    'video/webm;codecs=vp9',
+                    'video/webm;codecs=vp8',
+                    'video/webm',
+                    'video/mp4'
+                ]
+                : [
+                    'video/webm;codecs=vp9,opus',
+                    'video/webm;codecs=vp8,opus',
+                    'video/mp4',
+                    'video/webm'
+                ];
+
+            let chosenMime = '';
+            if (window.MediaRecorder && typeof MediaRecorder.isTypeSupported === 'function') {
+                chosenMime = mimeCandidates.find(type => MediaRecorder.isTypeSupported(type)) || '';
+            }
+
+            recordedChunks = [];
+            mediaRecorder = chosenMime
+                ? new MediaRecorder(combinedStream, { mimeType: chosenMime, videoBitsPerSecond: 4000000 })
+                : new MediaRecorder(combinedStream);
+
+            currentMimeType = mediaRecorder.mimeType || chosenMime || 'video/webm';
+
+            mediaRecorder.ondataavailable = (event) => {
+                if (event.data && event.data.size > 0) {
+                    recordedChunks.push(event.data);
+                }
+            };
+
+            mediaRecorder.onstop = () => {
+                finalizeRecordedBlob();
+            };
+
+            mediaRecorder.start(1000);
+            isRecording = true;
+            updateRecordButtonUI(true);
         } catch (err) {
-            mediaRecorder = new MediaRecorder(canvasStream);
+            console.error('Error al iniciar MediaRecorder:', err);
+            isRecording = false;
+            updateRecordButtonUI(false);
         }
-
-        recordedChunks = [];
-        mediaRecorder.ondataavailable = (e) => {
-            if (e.data && e.data.size > 0) {
-                recordedChunks.push(e.data);
-            }
-        };
-
-        mediaRecorder.onstop = () => {
-            const finalType = (mediaRecorder && mediaRecorder.mimeType) || selectedMime || 'video/webm';
-            const ext = finalType.includes('mp4') ? 'mp4' : 'webm';
-            const blob = new Blob(recordedChunks, { type: finalType });
-
-            if (lastBlobUrl) {
-                URL.revokeObjectURL(lastBlobUrl);
-            }
-
-            lastRecordedBlob = blob;
-            lastFilename = `jerkof-session-${config.bgMode}.${ext}`;
-            lastBlobUrl = URL.createObjectURL(blob);
-
-            const recDurationSecs = Math.max(1, (performance.now() - recordingStartStamp) / 1000);
-            const sizeMB = Math.max(0.01, blob.size / (1024 * 1024)).toFixed(2);
-
-            exportTitle.innerText = 'Video Listo para Descargar';
-            exportMeta.innerText = `Duración: ${formatTime(recDurationSecs)} · Peso: ${sizeMB} MB · Formato: .${ext.toUpperCase()}`;
-            exportStatusNote.innerText = '';
-
-            exportPreviewVideo.src = lastBlobUrl;
-            fallbackOpenLink.href = lastBlobUrl;
-            fallbackOpenLink.download = lastFilename;
-
-            // Mostrar modal de descarga garantizada y pausar sesión en segundo plano
-            videoControls.classList.remove('show');
-            exportModal.classList.add('visible');
-
-            // Intento automático inmediato de descarga estándar
-            attemptAnchorDownload(lastBlobUrl, lastFilename);
-        };
-
-        mediaRecorder.start(1000);
-        isRecording = true;
-        recordingStartStamp = performance.now();
-        recBtn.classList.add('recording');
-        recBtn.innerHTML = iconRecStop;
     }
 
-    function stopRecording() {
-        if (!isRecording) return;
+    function stopCanvasRecording() {
+        if (!isRecording || !mediaRecorder) return;
         isRecording = false;
-        recBtn.classList.remove('recording');
-        recBtn.innerHTML = iconRecStart;
+        updateRecordButtonUI(false);
 
-        if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-            try {
-                if (mediaRecorder.state === 'recording') {
-                    mediaRecorder.requestData();
-                }
-            } catch (e) {}
-            mediaRecorder.stop();
+        try {
+            if (mediaRecorder.state === 'recording') {
+                mediaRecorder.requestData();
+            }
+            if (mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop();
+            }
+        } catch (err) {
+            console.error('Error al detener MediaRecorder:', err);
+            finalizeRecordedBlob();
         }
     }
 
-    function attemptAnchorDownload(url, filename) {
+    function finalizeRecordedBlob() {
+        if (!recordedChunks.length) return;
+
+        const isMp4 = currentMimeType.toLowerCase().includes('mp4');
+        const ext = isMp4 ? 'mp4' : 'webm';
+        currentFileName = `jerkof-metronomo-1920x180.${ext}`;
+
+        currentBlob = new Blob(recordedChunks, { type: currentMimeType });
+        currentBlobUrl = URL.createObjectURL(currentBlob);
+
+        const sizeMB = (currentBlob.size / (1024 * 1024)).toFixed(2);
+        const bgLabels = {
+            transparent: 'Transparente (Alpha)',
+            black: 'Negro Puro',
+            green: 'Chroma Verde'
+        };
+
+        exportMetaText.textContent = `1920 x 180 px · ${sizeMB} MB · ${bgLabels[config.bgMode] || 'WebM'}`;
+        previewVideo.src = currentBlobUrl;
+        directAnchorLink.href = currentBlobUrl;
+        directAnchorLink.download = currentFileName;
+        statusToast.textContent = '';
+
+        // Mostrar botón de compartir/guardar en archivos si el navegador móvil lo soporta
         try {
-            const a = document.createElement('a');
-            a.style.display = 'none';
-            a.href = url;
-            a.download = filename;
-            document.body.appendChild(a);
-            a.click();
-            setTimeout(() => {
-                if (a.parentNode) document.body.removeChild(a);
-            }, 1500);
-        } catch (err) {}
+            const testFile = new File([currentBlob], currentFileName, { type: currentMimeType });
+            if (navigator.canShare && navigator.canShare({ files: [testFile] })) {
+                btnShareFile.style.display = 'flex';
+            } else {
+                btnShareFile.style.display = 'none';
+            }
+        } catch (e) {
+            btnShareFile.style.display = 'none';
+        }
+
+        // Pausar bucle de fondo mientras el usuario descarga y abrir modal
+        isUserPaused = true;
+        btnPlayPause.innerHTML = svgPlay;
+        controlDock.classList.remove('show');
+        exportModal.classList.add('show');
     }
 
-    // Mecanismo multi-capa al pulsar el botón verde "Descargar Video Ahora"
-    async function triggerGuaranteedDownload() {
-        if (!lastRecordedBlob) return;
-        exportStatusNote.innerText = 'Procesando descarga...';
+    // Ejecución escalonada de descarga infalible (File System Access API -> Anchor Blob -> Respaldo)
+    async function triggerRobustDownload() {
+        if (!currentBlob || !currentBlobUrl) return;
+        statusToast.textContent = '';
 
-        // 1. File System Access API (Diálogo nativo "Guardar como..." en navegadores de escritorio)
-        if (window.showSaveFilePicker) {
+        // Intento 1: window.showSaveFilePicker (si está disponible y permitido en el contexto)
+        if (typeof window.showSaveFilePicker === 'function') {
             try {
-                const ext = lastFilename.endsWith('.mp4') ? '.mp4' : '.webm';
+                const isMp4 = currentFileName.endsWith('.mp4');
                 const handle = await window.showSaveFilePicker({
-                    suggestedName: lastFilename,
+                    suggestedName: currentFileName,
                     types: [{
-                        description: 'Archivo de Video',
-                        accept: { [lastRecordedBlob.type || 'video/webm']: [ext] }
+                        description: 'Video Overlay Metrónomo',
+                        accept: { [currentMimeType]: [isMp4 ? '.mp4' : '.webm'] }
                     }]
                 });
                 const writable = await handle.createWritable();
-                await writable.write(lastRecordedBlob);
+                await writable.write(currentBlob);
                 await writable.close();
-                exportStatusNote.innerText = 'Archivo guardado correctamente en tu dispositivo.';
+                statusToast.textContent = 'Archivo guardado correctamente.';
                 return;
             } catch (err) {
-                if (err && err.name === 'AbortError') {
-                    exportStatusNote.innerText = 'Guardado cancelado.';
-                    return;
-                }
+                // Si el usuario canceló explícitamente el diálogo, no forzar segunda descarga
+                if (err && err.name === 'AbortError') return;
+                // Si está bloqueado por iframe/permisos, continuar al Intento 2
             }
         }
 
-        // 2. Web Share API con archivos (Móviles iOS/Android: guardar en galería / archivos)
-        if (navigator.canShare && window.File) {
-            try {
-                const fileObj = new File([lastRecordedBlob], lastFilename, { type: lastRecordedBlob.type });
-                if (navigator.canShare({ files: [fileObj] })) {
-                    await navigator.share({
-                        files: [fileObj],
-                        title: 'JERKOF Video'
-                    });
-                    exportStatusNote.innerText = 'Archivo compartido / guardado.';
-                    return;
-                }
-            } catch (err) {
-                if (err && err.name === 'AbortError') {
-                    exportStatusNote.innerText = '';
-                    return;
-                }
-            }
-        }
-
-        // 3. Descarga directa con Blob URL
-        attemptAnchorDownload(lastBlobUrl, lastFilename);
-
-        // 4. Respaldo Data URL si el contenedor/iframe bloquea descargas blob:
+        // Intento 2: Descarga directa con <a download> y Blob URL persistente
         try {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                if (typeof reader.result === 'string') {
-                    fallbackOpenLink.href = reader.result;
-                    attemptAnchorDownload(reader.result, lastFilename);
+            const tempLink = document.createElement('a');
+            tempLink.style.display = 'none';
+            tempLink.href = currentBlobUrl;
+            tempLink.download = currentFileName;
+            document.body.appendChild(tempLink);
+            tempLink.click();
+            setTimeout(() => {
+                if (tempLink.parentNode) {
+                    tempLink.parentNode.removeChild(tempLink);
                 }
-            };
-            reader.readAsDataURL(lastRecordedBlob);
-        } catch (e) {}
-
-        exportStatusNote.innerText = 'Descarga iniciada. Si tu navegador la bloquea, usa "Abrir / Compartir".';
-    }
-
-    function closeExportModal() {
-        exportModal.classList.remove('visible');
-        exportPreviewVideo.pause();
-    }
-
-    // --- CONTROLES DE VIDEO Y UI INTERACTIVA ---
-    videoContainer.addEventListener('click', () => {
-        if (gameActive && !isPausedByGame) {
-            showControls();
+            }, 2000);
+            statusToast.textContent = 'Descarga iniciada. Si no baja automáticamente, usa Enlace Directo.';
+        } catch (err) {
+            statusToast.textContent = 'Usa "Enlace Directo" o "Compartir" para guardar el video.';
         }
-    });
+    }
 
-    function showControls() {
-        videoControls.classList.add('show');
-        clearTimeout(controlsTimeout);
-        
-        controlsTimeout = setTimeout(() => {
-            if (!isSessionPaused && !isSeeking) {
-                videoControls.classList.remove('show');
+    // Intento 3: Respaldo móvil / iframe mediante navigator.share con archivo
+    async function triggerShareFile() {
+        if (!currentBlob) return;
+        try {
+            const file = new File([currentBlob], currentFileName, { type: currentMimeType });
+            if (navigator.share) {
+                await navigator.share({
+                    files: [file],
+                    title: 'JERKOF Metrónomo 1920x180'
+                });
+                statusToast.textContent = 'Archivo compartido / guardado.';
+            }
+        } catch (err) {
+            if (err && err.name !== 'AbortError') {
+                statusToast.textContent = 'Mantén presionado "Enlace Directo" para descargar.';
+            }
+        }
+    }
+
+    // --- CONTROLES DE SESIÓN Y AUTO-OCULTADO ---
+    function showControlsTemporarily() {
+        if (!gameActive || exportModal.classList.contains('show')) return;
+        controlDock.classList.add('show');
+        clearTimeout(controlsTimeoutId);
+
+        controlsTimeoutId = setTimeout(() => {
+            if (!isUserPaused) {
+                controlDock.classList.remove('show');
             }
         }, 3000);
     }
 
-    function togglePlay() {
-        if (isPausedByGame) return;
-        initAudio();
-        const btn = document.getElementById('playPauseBtn');
-        isSessionPaused = !isSessionPaused;
+    function togglePlayPause() {
+        if (!gameActive) return;
+        initAudioEngine();
+        isUserPaused = !isUserPaused;
 
-        if (!isSessionPaused) {
-            if (!gameActive) {
-                gameActive = true;
-                lastFrameTime = performance.now();
-                animFrame = requestAnimationFrame(gameLoop);
-                analysisFrame = setInterval(evaluatePacing, 1000);
-            }
-            if (hasUserVideo) video.play().catch(() => {});
-            btn.innerHTML = iconPause;
-            showControls();
+        if (isUserPaused) {
+            btnPlayPause.innerHTML = svgPlay;
+            clearTimeout(controlsTimeoutId);
+            controlDock.classList.add('show');
         } else {
-            if (hasUserVideo) video.pause();
-            btn.innerHTML = iconPlay;
-            clearTimeout(controlsTimeout); 
-            videoControls.classList.add('show');
+            lastFrameTimestamp = performance.now();
+            btnPlayPause.innerHTML = svgPause;
+            showControlsTemporarily();
         }
     }
 
-    function skip(seconds) {
-        if (isPausedByGame) return;
-        initAudio();
-        virtualCurrentTime = Math.max(0, Math.min(config.targetDuration, virtualCurrentTime + seconds));
-        if (hasUserVideo && video.duration) {
-            video.currentTime = virtualCurrentTime % video.duration;
-        }
-        const rem = config.targetDuration - virtualCurrentTime;
-        if (rem > 20 && inGoldenZone) {
-            exitGoldenZone();
-        } else if (rem <= 20 && rem > 0 && !inGoldenZone) {
-            triggerGoldenZone();
-        }
-        showControls();
-    }
-
-    // --- RESET TOTAL (BOTÓN VOLVER AL MENÚ) ---
-    function returnToMenu() {
-        if (isRecording) {
-            stopRecording();
-        }
+    function finishSession() {
         gameActive = false;
-        isSessionPaused = false;
-        
-        cancelAnimationFrame(animFrame);
-        clearInterval(analysisFrame);
-        clearInterval(pInt);
-        clearTimeout(controlsTimeout);
-        
-        video.pause();
-        video.removeAttribute('src');
-        video.style.display = 'none';
-        document.getElementById('videoUpload').value = '';
-        
-        goldenOverlay.style.display = 'none';
-        pauseOverlay.style.display = 'none';
-        videoControls.classList.remove('show');
-        metronomeBar.style.display = 'none';
-        ambilight.style.display = 'block';
-        ambilight.style.background = 'none';
-        setupUI.style.display = 'flex';
-        
-        virtualCurrentTime = 0;
-        timeRemaining = 0;
-        isPausedByGame = false;
-        inGoldenZone = false;
-        currentColor = 'green';
-        document.getElementById('playPauseBtn').innerHTML = iconPause;
+        cancelAnimationFrame(animFrameId);
+        clearInterval(pacingIntervalId);
+        clearInterval(edgingIntervalId);
+
+        if (isRecording) {
+            stopCanvasRecording();
+        } else {
+            isUserPaused = true;
+            btnPlayPause.innerHTML = svgPlay;
+            showControlsTemporarily();
+        }
     }
 
-    // Exponer controladores globales
-    window.toggleFit = toggleFit;
-    window.toggleEdgingPause = toggleEdgingPause;
-    window.startOverlayAndRecord = startOverlayAndRecord;
-    window.startOverlayStandalone = startOverlayStandalone;
-    window.forceColor = forceColor;
-    window.jumpToGoldenZone = jumpToGoldenZone;
-    window.returnToMenu = returnToMenu;
-    window.skip = skip;
-    window.togglePlay = togglePlay;
-    window.toggleRecording = toggleRecording;
-    window.triggerGuaranteedDownload = triggerGuaranteedDownload;
-    window.closeExportModal = closeExportModal;
+    function returnToMenu() {
+        const wasRecording = isRecording;
+        gameActive = false;
+        isUserPaused = false;
+        isEdgingPaused = false;
+        inGoldenZone = false;
+
+        cancelAnimationFrame(animFrameId);
+        clearInterval(pacingIntervalId);
+        clearInterval(edgingIntervalId);
+        clearTimeout(controlsTimeoutId);
+
+        controlDock.classList.remove('show');
+        setupUI.style.display = 'flex';
+
+        if (wasRecording) {
+            stopCanvasRecording();
+        }
+    }
+
+    // --- EVENTOS DE INTERFAZ ---
+    document.getElementById('btnStartRecord').addEventListener('click', () => startSession(true));
+    document.getElementById('btnStartPreview').addEventListener('click', () => startSession(false));
+
+    stageContainer.addEventListener('click', () => {
+        if (gameActive) {
+            showControlsTemporarily();
+        }
+    });
+
+    document.getElementById('btnBackMenu').addEventListener('click', (e) => {
+        e.stopPropagation();
+        returnToMenu();
+    });
+
+    btnPlayPause.addEventListener('click', (e) => {
+        e.stopPropagation();
+        togglePlayPause();
+    });
+
+    document.getElementById('btnJumpGlory').addEventListener('click', (e) => {
+        e.stopPropagation();
+        jumpToGoldenZone();
+    });
+
+    btnStopDownload.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (isRecording) {
+            stopCanvasRecording();
+        } else {
+            startCanvasRecording();
+            showControlsTemporarily();
+        }
+    });
+
+    btnDownloadMain.addEventListener('click', triggerRobustDownload);
+    btnShareFile.addEventListener('click', triggerShareFile);
+
+    document.getElementById('btnCloseModal').addEventListener('click', () => {
+        previewVideo.pause();
+        exportModal.classList.remove('show');
+        if (gameActive) {
+            showControlsTemporarily();
+        }
+    });
+
+    // Dibujo inicial limpio en el lienzo
+    renderMetronomeFrame();
 </script>
 </body>
 </html>
